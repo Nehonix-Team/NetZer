@@ -2,6 +2,9 @@ use clap::Parser;
 use netzer_core::ethernet::{EthernetFrame, EtherType};
 use netzer_core::ipv4::Ipv4Header;
 use netzer_core::tcp::TcpHeader;
+use netzer_core::udp::UdpHeader;
+use netzer_core::dns::DnsQuery;
+use netzer_core::tls::TlsClientHello;
 use netzer_socket::socket::RawSocket;
 use std::process;
 use colored::*;
@@ -25,19 +28,27 @@ fn print_banner(interface: &str) {
     ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝
     "#;
     println!("{}", banner.bright_cyan().bold());
-    println!("{}", "================================================================================".bright_black());
+    println!("{}", "========================================================================================================================".bright_black());
     println!("  {} {}", "v0.1.0-alpha".bright_green(), "| High-Performance Zero-Copy Network Analyzer".italic());
     println!("  {} {}", "Listening on:".bold(), interface.bright_yellow());
-    println!("{}", "================================================================================".bright_black());
+    println!("{}", "========================================================================================================================".bright_black());
     println!(
-        " {:<14} │ {:<5} │ {:<21} │ {:<21} │ {:<6}",
-        "TIMESTAMP".bright_black().bold(),
-        "PROTO".bright_black().bold(),
-        "SOURCE".bright_black().bold(),
-        "DESTINATION".bright_black().bold(),
-        "SIZE".bright_black().bold()
+        " {} │ {} │ {} │ {} │ {} │ {}",
+        format!("{:<14}", "TIMESTAMP").bright_black().bold(),
+        format!("{:<5}", "PROTO").bright_black().bold(),
+        format!("{:<21}", "SOURCE").bright_black().bold(),
+        format!("{:<21}", "DESTINATION").bright_black().bold(),
+        format!("{:<35}", "INFO / DOMAIN").bright_black().bold(),
+        format!("{:<6}", "SIZE").bright_black().bold()
     );
-    println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼────────".bright_black());
+    println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼─────────────────────────────────────┼────────".bright_black());
+}
+
+fn truncate(s: &str, max_chars: usize) -> String {
+    match s.char_indices().nth(max_chars) {
+        None => s.to_string(),
+        Some((idx, _)) => format!("{}...", &s[..idx - 3]),
+    }
 }
 
 fn main() {
@@ -76,30 +87,64 @@ fn main() {
                     Err(_) => continue,
                 };
                 
-                if ipv4_header.protocol() != 6 {
-                    continue; // Skip non-TCP
-                }
-                
-                let (tcp_header, _payload) = match TcpHeader::parse(payload) {
-                    Ok(res) => res,
-                    Err(_) => continue,
-                };
-                
                 let now = Local::now();
-                let time_str = now.format("%H:%M:%S%.3f").to_string();
+                let time_str = format!("{:<14}", now.format("%H:%M:%S%.3f").to_string()).bright_black();
+                let protocol = ipv4_header.protocol();
                 
-                let src = format!("{}:{}", ipv4_header.source(), tcp_header.source_port());
-                let dst = format!("{}:{}", ipv4_header.destination(), tcp_header.destination_port());
+                let size_str = format!("{:<6}", format!("{} B", size)).bright_yellow();
                 
-                // Colorized row output
-                println!(
-                    " {:<14} │ {:<14} │ {:<30} │ {:<30} │ {:<6}",
-                    time_str.bright_black(), // Time
-                    "TCP".bright_cyan().bold(), // Protocol
-                    src.bright_green(), // Source
-                    dst.bright_red(), // Dest
-                    format!("{} B", size).bright_yellow() // Size
-                );
+                if protocol == 6 { // TCP
+                    let (tcp_header, tcp_payload) = match TcpHeader::parse(payload) {
+                        Ok(res) => res,
+                        Err(_) => continue,
+                    };
+                    
+                    let src_port = tcp_header.source_port();
+                    let dst_port = tcp_header.destination_port();
+                    let src = format!("{:<21}", format!("{}:{}", ipv4_header.source(), src_port)).bright_green();
+                    let dst = format!("{:<21}", format!("{}:{}", ipv4_header.destination(), dst_port)).bright_red();
+                    let proto = format!("{:<5}", "TCP").bright_cyan().bold();
+                    
+                    let mut info = format!("{:<35}", "[ENCRYPTED]").bright_black().to_string();
+                    
+                    // SNI Extraction
+                    if dst_port == 443 {
+                        if let Ok(tls) = TlsClientHello::parse(tcp_payload) {
+                            let domain = truncate(tls.sni, 35);
+                            info = format!("{:<35}", domain).bright_magenta().bold().to_string();
+                        }
+                    } else if src_port == 80 || dst_port == 80 {
+                         info = format!("{:<35}", "[HTTP]").white().to_string();
+                    }
+                    
+                    println!(" {} │ {} │ {} │ {} │ {} │ {}", time_str, proto, src, dst, info, size_str);
+                    
+                } else if protocol == 17 { // UDP
+                    let (udp_header, udp_payload) = match UdpHeader::parse(payload) {
+                        Ok(res) => res,
+                        Err(_) => continue,
+                    };
+                    
+                    let src_port = udp_header.source_port();
+                    let dst_port = udp_header.destination_port();
+                    let src = format!("{:<21}", format!("{}:{}", ipv4_header.source(), src_port)).bright_green();
+                    let dst = format!("{:<21}", format!("{}:{}", ipv4_header.destination(), dst_port)).bright_red();
+                    let proto = format!("{:<5}", "UDP").bright_blue().bold();
+                    
+                    let mut info = format!("{:<35}", "-").bright_black().to_string();
+                    
+                    // DNS Extraction
+                    if dst_port == 53 || src_port == 53 {
+                        if let Ok(dns) = DnsQuery::parse(udp_payload) {
+                            let domain = truncate(&dns.domain_name, 35);
+                            info = format!("{:<35}", format!("DNS: {}", domain)).bright_yellow().bold().to_string();
+                        } else {
+                            info = format!("{:<35}", "DNS").bright_yellow().to_string();
+                        }
+                    }
+                    
+                    println!(" {} │ {} │ {} │ {} │ {} │ {}", time_str, proto, src, dst, info, size_str);
+                }
             }
             Err(e) => {
                 eprintln!(" {} {}", "[-] READ ERROR:".bright_red(), e);
