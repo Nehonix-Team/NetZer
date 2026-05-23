@@ -75,6 +75,97 @@ impl RawSocket {
             }
         }
     }
+
+    pub fn attach_filter_port(&self, port: u16) -> io::Result<()> {
+        let mut filter = vec![
+            libc::sock_filter { code: 0x28, jt: 0, jf: 8, k: 12 },
+            libc::sock_filter { code: 0x15, jt: 0, jf: 8, k: 0x0800 },
+            libc::sock_filter { code: 0x30, jt: 0, jf: 0, k: 23 },
+            libc::sock_filter { code: 0x15, jt: 1, jf: 0, k: 6 },
+            libc::sock_filter { code: 0x15, jt: 0, jf: 5, k: 17 },
+            libc::sock_filter { code: 0xb1, jt: 0, jf: 0, k: 14 },
+            libc::sock_filter { code: 0x48, jt: 0, jf: 0, k: 14 },
+            libc::sock_filter { code: 0x15, jt: 2, jf: 0, k: port as u32 },
+            libc::sock_filter { code: 0x48, jt: 0, jf: 0, k: 16 },
+            libc::sock_filter { code: 0x15, jt: 0, jf: 1, k: port as u32 },
+            libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 65535 },
+            libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 0 },
+        ];
+
+        let prog = libc::sock_fprog {
+            len: filter.len() as u16,
+            filter: filter.as_mut_ptr(),
+        };
+
+        unsafe {
+            let ret = libc::setsockopt(
+                self.fd,
+                libc::SOL_SOCKET,
+                libc::SO_ATTACH_FILTER,
+                &prog as *const _ as *const libc::c_void,
+                std::mem::size_of::<libc::sock_fprog>() as u32,
+            );
+            if ret < 0 {
+                return Err(io::Error::last_os_error());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn attach_filter_proto(&self, proto: &str) -> io::Result<()> {
+        let mut filter = match proto.to_lowercase().as_str() {
+            "tcp" => vec![
+                libc::sock_filter { code: 0x28, jt: 0, jf: 3, k: 12 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 2, k: 0x0800 },
+                libc::sock_filter { code: 0x30, jt: 0, jf: 0, k: 23 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 1, k: 6 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 65535 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 0 },
+            ],
+            "udp" => vec![
+                libc::sock_filter { code: 0x28, jt: 0, jf: 3, k: 12 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 2, k: 0x0800 },
+                libc::sock_filter { code: 0x30, jt: 0, jf: 0, k: 23 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 1, k: 17 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 65535 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 0 },
+            ],
+            "icmp" => vec![
+                libc::sock_filter { code: 0x28, jt: 0, jf: 3, k: 12 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 2, k: 0x0800 },
+                libc::sock_filter { code: 0x30, jt: 0, jf: 0, k: 23 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 1, k: 1 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 65535 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 0 },
+            ],
+            "arp" => vec![
+                libc::sock_filter { code: 0x28, jt: 0, jf: 1, k: 12 },
+                libc::sock_filter { code: 0x15, jt: 0, jf: 1, k: 0x0806 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 65535 },
+                libc::sock_filter { code: 0x06, jt: 0, jf: 0, k: 0 },
+            ],
+            _ => return Err(io::Error::new(io::ErrorKind::InvalidInput, "Unsupported protocol for BPF")),
+        };
+
+        let prog = libc::sock_fprog {
+            len: filter.len() as u16,
+            filter: filter.as_mut_ptr(),
+        };
+
+        unsafe {
+            let ret = libc::setsockopt(
+                self.fd,
+                libc::SOL_SOCKET,
+                libc::SO_ATTACH_FILTER,
+                &prog as *const _ as *const libc::c_void,
+                std::mem::size_of::<libc::sock_fprog>() as u32,
+            );
+            if ret < 0 {
+                return Err(io::Error::last_os_error());
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Drop for RawSocket {
