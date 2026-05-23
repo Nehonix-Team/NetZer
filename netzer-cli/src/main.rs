@@ -61,7 +61,13 @@ fn main() {
         Err(e) => {
             eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to open raw socket.".white());
             eprintln!("     Details: {}", e.to_string().bright_black());
-            eprintln!("     Hint: NetZer requires CAP_NET_RAW. Try running with 'sudo'.\n");
+            
+            let hint = match e.raw_os_error() {
+                Some(1) | Some(13) => "Hint: NetZer requires CAP_NET_RAW. Try running with 'sudo'.",
+                Some(19) => "Hint: The specified interface does not exist. Check 'ifconfig' or 'ip link'.",
+                _ => "Hint: Ensure the interface is up and you have sufficient permissions.",
+            };
+            eprintln!("     {}\n", hint.bright_black());
             process::exit(1);
         }
     };
