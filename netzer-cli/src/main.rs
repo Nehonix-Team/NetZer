@@ -1,13 +1,16 @@
 use clap::Parser;
 use netzer_core::ethernet::{EthernetFrame, EtherType};
 use netzer_core::ipv4::Ipv4Header;
+use netzer_core::ipv6::Ipv6Header;
+use netzer_core::arp::ArpPacket;
+use netzer_core::icmp::IcmpHeader;
 use netzer_core::tcp::TcpHeader;
 use netzer_core::udp::UdpHeader;
 use netzer_core::dns::DnsQuery;
 use netzer_core::tls::TlsClientHello;
 use netzer_socket::socket::RawSocket;
 use std::process;
-use colored::*;
+use colored::{ColoredString, Colorize};
 use chrono::Local;
 
 #[derive(Parser, Debug)]
@@ -51,6 +54,142 @@ fn truncate(s: &str, max_chars: usize) -> String {
     }
 }
 
+fn print_packet_line(
+    time_str: &str,
+    proto: ColoredString,
+    src: &str,
+    dst: &str,
+    info: &str,
+    size: usize,
+) {
+    let time_colored = format!("{:<14}", time_str).bright_black();
+    let src_colored = format!("{:<21}", src).bright_green();
+    let dst_colored = format!("{:<21}", dst).bright_red();
+    let size_colored = format!("{:<6}", format!("{} B", size)).bright_yellow();
+
+    println!(
+        " {} │ {} │ {} │ {} │ {} │ {}",
+        time_colored, proto, src_colored, dst_colored, info, size_colored
+    );
+}
+
+fn handle_tcp(src_ip: &str, dst_ip: &str, payload: &[u8], time_str: &str, size: usize) {
+    let (tcp_header, tcp_payload) = match TcpHeader::parse(payload) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+    
+    let src_port = tcp_header.source_port();
+    let dst_port = tcp_header.destination_port();
+    let src = format!("{}:{}", src_ip, src_port);
+    let dst = format!("{}:{}", dst_ip, dst_port);
+    let proto = format!("{:<5}", "TCP").bright_cyan().bold();
+    
+    let mut info = format!("{:<35}", "[ENCRYPTED]").bright_black().to_string();
+    
+    if dst_port == 443 {
+        if let Ok(tls) = TlsClientHello::parse(tcp_payload) {
+            let domain = truncate(tls.sni, 35);
+            info = format!("{:<35}", domain).bright_magenta().bold().to_string();
+        }
+    } else if src_port == 80 || dst_port == 80 {
+        info = format!("{:<35}", "[HTTP]").white().to_string();
+    }
+    
+    print_packet_line(time_str, proto, &src, &dst, &info, size);
+}
+
+fn handle_udp(src_ip: &str, dst_ip: &str, payload: &[u8], time_str: &str, size: usize) {
+    let (udp_header, udp_payload) = match UdpHeader::parse(payload) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+    
+    let src_port = udp_header.source_port();
+    let dst_port = udp_header.destination_port();
+    let src = format!("{}:{}", src_ip, src_port);
+    let dst = format!("{}:{}", dst_ip, dst_port);
+    let proto = format!("{:<5}", "UDP").bright_blue().bold();
+    
+    let mut info = format!("{:<35}", "-").bright_black().to_string();
+    
+    if dst_port == 53 || src_port == 53 {
+        if let Ok(dns) = DnsQuery::parse(udp_payload) {
+            let domain = truncate(&dns.domain_name, 35);
+            info = format!("{:<35}", format!("DNS: {}", domain)).bright_yellow().bold().to_string();
+        } else {
+            info = format!("{:<35}", "DNS").bright_yellow().to_string();
+        }
+    }
+    
+    print_packet_line(time_str, proto, &src, &dst, &info, size);
+}
+
+fn handle_icmp(src_ip: &str, dst_ip: &str, payload: &[u8], time_str: &str, size: usize) {
+    let (icmp_header, _) = match IcmpHeader::parse(payload) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+    
+    let proto = format!("{:<5}", "ICMP").bright_red().bold();
+    let info_str = match icmp_header.icmp_type() {
+        0 => "Echo Reply (0)".to_string(),
+        3 => format!("Dest Unreachable ({})", icmp_header.code()),
+        8 => "Echo Request (8)".to_string(),
+        11 => "Time Exceeded".to_string(),
+        t => format!("Type {}", t),
+    };
+    
+    let info = format!("{:<35}", info_str).bright_red().to_string();
+    print_packet_line(time_str, proto, src_ip, dst_ip, &info, size);
+}
+
+fn handle_icmpv6(src_ip: &str, dst_ip: &str, payload: &[u8], time_str: &str, size: usize) {
+    let (icmp_header, _) = match IcmpHeader::parse(payload) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+    
+    let proto = format!("{:<5}", "ICMP6").bright_red().bold();
+    let info_str = match icmp_header.icmp_type() {
+        1 => "Dest Unreachable".to_string(),
+        2 => "Packet Too Big".to_string(),
+        3 => "Time Exceeded".to_string(),
+        128 => "Echo Request (Ping)".to_string(),
+        129 => "Echo Reply (Ping)".to_string(),
+        133 => "Router Solicitation".to_string(),
+        134 => "Router Advertisement".to_string(),
+        135 => "Neighbor Solicitation".to_string(),
+        136 => "Neighbor Advertisement".to_string(),
+        t => format!("Type {}", t),
+    };
+    
+    let info = format!("{:<35}", info_str).bright_red().to_string();
+    print_packet_line(time_str, proto, src_ip, dst_ip, &info, size);
+}
+
+fn handle_arp(payload: &[u8], time_str: &str, size: usize) {
+    let arp = match ArpPacket::parse(payload) {
+        Ok(res) => res,
+        Err(_) => return,
+    };
+    
+    let proto = format!("{:<5}", "ARP").bright_yellow().bold();
+    
+    let opcode = arp.opcode();
+    let info_str = match opcode {
+        1 => format!("Who has {}? Tell {}", arp.target_ip(), arp.sender_ip()),
+        2 => format!("{} is at {}", arp.sender_ip(), arp.sender_mac()),
+        op => format!("Opcode {}", op),
+    };
+    
+    let info = format!("{:<35}", truncate(&info_str, 35)).bright_yellow().to_string();
+    let src = format!("{}", arp.sender_mac());
+    let dst = format!("{}", arp.target_mac());
+    
+    print_packet_line(time_str, proto, &src, &dst, &info, size);
+}
+
 fn main() {
     let args = Args::parse();
     
@@ -90,76 +229,50 @@ fn main() {
                     Err(_) => continue,
                 };
                 
-                if eth_frame.ethertype() != EtherType::Ipv4 {
-                    continue;
-                }
-                
-                let (ipv4_header, payload) = match Ipv4Header::parse(payload) {
-                    Ok(res) => res,
-                    Err(_) => continue,
-                };
-                
                 let now = Local::now();
-                let time_str = format!("{:<14}", now.format("%H:%M:%S%.3f").to_string()).bright_black();
-                let protocol = ipv4_header.protocol();
+                let time_str = now.format("%H:%M:%S%.3f").to_string();
                 
-                let size_str = format!("{:<6}", format!("{} B", size)).bright_yellow();
-                
-                if protocol == 6 { // TCP
-                    let (tcp_header, tcp_payload) = match TcpHeader::parse(payload) {
-                        Ok(res) => res,
-                        Err(_) => continue,
-                    };
-                    
-                    let src_port = tcp_header.source_port();
-                    let dst_port = tcp_header.destination_port();
-                    let src = format!("{:<21}", format!("{}:{}", ipv4_header.source(), src_port)).bright_green();
-                    let dst = format!("{:<21}", format!("{}:{}", ipv4_header.destination(), dst_port)).bright_red();
-                    let proto = format!("{:<5}", "TCP").bright_cyan().bold();
-                    
-                    let mut info = format!("{:<35}", "[ENCRYPTED]").bright_black().to_string();
-                    
-                    // SNI Extraction
-                    if dst_port == 443 {
-                        if let Ok(tls) = TlsClientHello::parse(tcp_payload) {
-                            let domain = truncate(tls.sni, 35);
-                            info = format!("{:<35}", domain).bright_magenta().bold().to_string();
-                        }
-                    } else if src_port == 80 || dst_port == 80 {
-                         info = format!("{:<35}", "[HTTP]").white().to_string();
-                    }
-                    
-                    println!(" {} │ {} │ {} │ {} │ {} │ {}", time_str, proto, src, dst, info, size_str);
-                    
-                } else if protocol == 17 { // UDP
-                    let (udp_header, udp_payload) = match UdpHeader::parse(payload) {
-                        Ok(res) => res,
-                        Err(_) => continue,
-                    };
-                    
-                    let src_port = udp_header.source_port();
-                    let dst_port = udp_header.destination_port();
-                    let src = format!("{:<21}", format!("{}:{}", ipv4_header.source(), src_port)).bright_green();
-                    let dst = format!("{:<21}", format!("{}:{}", ipv4_header.destination(), dst_port)).bright_red();
-                    let proto = format!("{:<5}", "UDP").bright_blue().bold();
-                    
-                    let mut info = format!("{:<35}", "-").bright_black().to_string();
-                    
-                    // DNS Extraction
-                    if dst_port == 53 || src_port == 53 {
-                        if let Ok(dns) = DnsQuery::parse(udp_payload) {
-                            let domain = truncate(&dns.domain_name, 35);
-                            info = format!("{:<35}", format!("DNS: {}", domain)).bright_yellow().bold().to_string();
-                        } else {
-                            info = format!("{:<35}", "DNS").bright_yellow().to_string();
+                match eth_frame.ethertype() {
+                    EtherType::Ipv4 => {
+                        let (ipv4_header, ip_payload) = match Ipv4Header::parse(payload) {
+                            Ok(res) => res,
+                            Err(_) => continue,
+                        };
+                        
+                        let src_ip = format!("{}", ipv4_header.source());
+                        let dst_ip = format!("{}", ipv4_header.destination());
+                        
+                        match ipv4_header.protocol() {
+                            6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            _ => {}
                         }
                     }
-                    
-                    println!(" {} │ {} │ {} │ {} │ {} │ {}", time_str, proto, src, dst, info, size_str);
+                    EtherType::Ipv6 => {
+                        let (ipv6_header, ip_payload) = match Ipv6Header::parse(payload) {
+                            Ok(res) => res,
+                            Err(_) => continue,
+                        };
+                        
+                        let src_ip = format!("{}", ipv6_header.source());
+                        let dst_ip = format!("{}", ipv6_header.destination());
+                        
+                        match ipv6_header.next_header() {
+                            6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size),
+                            _ => {}
+                        }
+                    }
+                    EtherType::Arp => {
+                        handle_arp(payload, &time_str, size);
+                    }
+                    _ => {}
                 }
             }
             Err(e) => {
-                eprintln!(" {} {}", "[-] READ ERROR:".bright_red(), e);
+                eprintln!(" [SECURITY] READ ERROR: {}", e);
             }
         }
     }
