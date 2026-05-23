@@ -1,199 +1,183 @@
-# Network Packet Analyzer
+<div align="center">
 
-![Language](https://img.shields.io/badge/Language-Python-3776AB?style=flat&logo=python&logoColor=white)
-![Library](https://img.shields.io/badge/Library-Scapy-00A3E0?style=flat)
-![Type](https://img.shields.io/badge/Type-Network%20Analysis%20Tool-blue?style=flat)
-![Status](https://img.shields.io/badge/Status-Completed-brightgreen?style=flat)
-![Internship](https://img.shields.io/badge/Internship-Prodigy%20InfoTech-blue?style=flat)
+# ⚡ NetZer
 
-> Python tool that captures and analyzes network packets in real-time — protocol identification, header inspection, and payload analysis for educational purposes.
+### NETwork analyZER
+
+**A high-performance, zero-copy network packet analyzer for Linux — written in Rust.**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](#)
+[![Platform](https://img.shields.io/badge/platform-Linux-orange.svg)](#)
+[![Language](https://img.shields.io/badge/language-Rust-red.svg)](#)
+
+</div>
 
 ---
 
-## About
+## Why NetZer?
 
-This project was developed as part of the **Prodigy InfoTech** cybersecurity internship. It is a network packet analyzer built with Python and Scapy that sniffs live traffic from a specified network interface and extracts structured information from each packet — helping visualize how data actually travels across a network.
+Most packet analyzers (including `tcpdump`) rely on `libpcap` — a C library that introduces unnecessary memory copies and limits performance on high-throughput networks.
 
-Understanding packet structure is a core skill in both **network security** and **penetration testing** — it is how tools like Wireshark, tcpdump, and Nmap work under the hood.
+NetZer takes a different approach:
+
+- **Direct kernel integration** via `AF_PACKET` raw sockets and `TPACKET_V3` ring buffers — no per-packet `recv` syscall
+- **Zero-copy, zero-heap parsing** — packet headers are decoded using pointers into the original buffer, with no heap allocations
+- **No runtime dependencies** — ships as a single static binary
 
 ---
 
 ## Features
 
-| Feature | Description |
-|---|---|
-| Live Packet Capture | Intercepts real-time traffic from a specified network interface |
-| Protocol Identification | Detects and labels TCP, UDP, ICMP and other protocols |
-| Header Inspection | Extracts source/destination IP addresses and port numbers |
-| Payload Analysis | Displays raw or hex content contained within packets |
-| Structured Output | Clean, readable display for each captured packet |
+### 🚀 High-Performance Capture
+- `AF_PACKET` + `TPACKET_V3` ring buffer: shared `mmap` between userspace and kernel
+- Lock-free producer/consumer pipeline (`crossbeam` / `ringbuf`) — capture thread is never stalled by analysis
+- CPU affinity support: pin capture threads to dedicated cores to avoid cache migrations
+- *(roadmap)* XDP/eBPF support for line-rate capture at 10+ Gbps
+
+### 🔬 Protocol Analysis
+- Zero-copy dissection: **Ethernet, ARP, IPv4, IPv6, TCP, UDP, ICMP**
+- **TCP stream reassembly** — reconstruct full sessions for application-layer analysis (HTTP, DNS...)
+- **TLS SNI extraction** — identify destinations without decrypting traffic, straight from the ClientHello
+- *(roadmap)* **Passive OS fingerprinting** — identify OS and browsers via TCP fields (TTL, Window Size, options), inspired by `p0f`
+
+### 🎯 Smart Filtering
+- **Kernel-level BPF filtering** via `setsockopt(SO_ATTACH_FILTER)` — only matching packets reach userspace
+- No CPU waste on irrelevant traffic
+
+### 🔒 Security-First Design
+- **Privilege dropping**: NetZer opens the raw socket with `CAP_NET_RAW`, then permanently drops root privileges via `setuid`/`setgid` before any packet processing
+- **Memory safety guaranteed by Rust** — no buffer overflows or memory corruption when decoding network headers
+
+### 📤 Output & Integrations
+- Structured, colorized terminal output with hex/ASCII payload display
+- **`.pcap` export** — captures compatible with Wireshark and any libpcap-based tool
+- **JSON / NDJSON streaming export** — pipe directly into ELK, Grafana Loki, or any log pipeline
+- **"Follow stream" mode** — reconstruct and display a full TCP session in the terminal, Wireshark-style
+- *(roadmap)* **Prometheus metrics endpoint** — real-time stats (packets/sec, bytes/sec, top IPs)
+- *(roadmap)* **WASM plugin system** — load custom protocol dissectors at runtime, no recompilation needed
 
 ---
 
-## Installation
+## Architecture
+
+NetZer is organized as a Cargo workspace with three focused crates:
+
+```
+                        +-----------------------+
+                        |      netzer-cli       |  (CLI/TUI interface & output)
+                        +-----------+-----------+
+                                    |
+                        +-----------v-----------+
+                        |    netzer-socket      |  (Linux raw sockets & ring buffer)
+                        +-----------+-----------+
+                                    |
+                        +-----------v-----------+
+                        |      netzer-core      |  (Zero-copy parsers & TCP reassembly)
+                        +-----------------------+
+```
+
+| Crate | Responsibility |
+|-------|---------------|
+| `netzer-core` | Protocol parsers, TCP reassembly, TLS SNI extraction. Takes `&[u8]` slices and returns decoded structs with zero heap allocation. |
+| `netzer-socket` | `AF_PACKET` socket lifecycle, `TPACKET_V3` ring buffer setup, BPF filter injection, privilege dropping. |
+| `netzer-cli` | Argument parsing (`clap`), colorized output, hex/ASCII formatting, `.pcap` and JSON export. |
+
+---
+
+## Roadmap
+
+### Phase 1 — Raw Capture (`netzer-socket`)
+- [ ] Cargo workspace & crate structure
+- [ ] `AF_PACKET` socket initialization and binding
+- [ ] Socket lifecycle management and Linux error handling
+- [ ] Privilege dropping (`setuid`/`setgid`) post-initialization
+
+### Phase 2 — Zero-Copy Parser Engine (`netzer-core`)
+- [ ] Binary parsers: Ethernet, ARP, IPv4/IPv6, TCP, UDP, ICMP
+- [ ] Unit tests with real packet captures (`.pcap` fixtures)
+- [ ] TCP stream reassembly
+- [ ] TLS SNI extraction from ClientHello
+
+### Phase 3 — Filtering & CLI (`netzer-cli`)
+- [ ] CLI arguments: interface selection, filters, packet count, output format
+- [ ] BPF filter integration into the raw socket
+- [ ] Colorized console output + hex/ASCII payload view
+- [ ] `.pcap` and JSON/NDJSON export
+
+### Phase 4 — Performance & Optimization
+- [ ] `TPACKET_V3` ring buffer migration
+- [ ] Lock-free producer/consumer pipeline
+- [ ] CPU affinity for capture threads
+- [ ] Performance benchmarks and type safety audit
+
+### Phase 5 — Ecosystem *(future)*
+- [ ] Passive fingerprinting (OS/browser detection)
+- [ ] XDP/eBPF support for 10+ Gbps throughput
+- [ ] Prometheus metrics endpoint
+- [ ] WASM plugin system for custom dissectors
+
+---
+
+## Getting Started
+
+### Requirements
+
+- Linux (kernel ≥ 4.x recommended for `TPACKET_V3`)
+- Rust stable (edition 2021+)
+- `CAP_NET_RAW` capability or root access to open raw sockets
+
+### Build
 
 ```bash
-# Clone the repository
-git clone https://github.com/ixsecure/PRODIGY_CS_05.git
-cd PRODIGY_CS_05
-
-# Install dependencies
-pip install scapy
-
-# Run with root privileges (required for packet capture)
-sudo python packet_analyzer.py
+git clone https://github.com/Nehonix-Team/NetZer
+cd NetZer
+cargo build --release
 ```
 
-> Note: Capturing network traffic requires root or administrator privileges on most systems.
+The resulting binary is **fully static with no runtime dependencies**.
 
----
-
-## Usage
+### Run
 
 ```bash
-sudo python packet_analyzer.py
-```
+# Capture on interface eth0
+sudo ./target/release/netzer -i eth0
 
-```
-Network Packet Analyzer — @ixsecure
-=====================================
-Interface : eth0
-Sniffing  : Started...
+# Capture only TCP traffic on port 443
+sudo ./target/release/netzer -i eth0 --filter "tcp port 443"
 
-[Packet #1]
-  Protocol  : TCP
-  Source    : 192.168.1.10:52341
-  Dest      : 142.250.74.46:443
-  Payload   : b'\x16\x03\x01\x00\xee\x01\x00...'
+# Save to pcap for Wireshark analysis
+sudo ./target/release/netzer -i eth0 -o capture.pcap
 
-[Packet #2]
-  Protocol  : UDP
-  Source    : 192.168.1.1:53
-  Dest      : 192.168.1.10:49152
-  Payload   : b'\x00\x01\x81\x80\x00\x01...'
-
-[Packet #3]
-  Protocol  : ICMP
-  Source    : 192.168.1.10
-  Dest      : 8.8.8.8
-  Type      : Echo Request (ping)
+# Stream output as JSON
+sudo ./target/release/netzer -i eth0 --format json
 ```
 
 ---
 
-## Code
+## Contributing
 
-```python
-from scapy.all import sniff, IP, TCP, UDP, ICMP
-import sys
+Contributions are welcome! Please open an issue before submitting a PR to discuss the proposed change.
 
-packet_count = 0
+```bash
+# Run tests
+cargo test --workspace
 
-def analyze_packet(packet):
-    global packet_count
-    packet_count += 1
+# Check formatting
+cargo fmt --check
 
-    print(f"\n[Packet #{packet_count}]")
-
-    if IP in packet:
-        src_ip = packet[IP].src
-        dst_ip = packet[IP].dst
-        proto  = packet[IP].proto
-
-        if TCP in packet:
-            print(f"  Protocol  : TCP")
-            print(f"  Source    : {src_ip}:{packet[TCP].sport}")
-            print(f"  Dest      : {dst_ip}:{packet[TCP].dport}")
-        elif UDP in packet:
-            print(f"  Protocol  : UDP")
-            print(f"  Source    : {src_ip}:{packet[UDP].sport}")
-            print(f"  Dest      : {dst_ip}:{packet[UDP].dport}")
-        elif ICMP in packet:
-            print(f"  Protocol  : ICMP")
-            print(f"  Source    : {src_ip}")
-            print(f"  Dest      : {dst_ip}")
-            print(f"  Type      : {packet[ICMP].type}")
-        else:
-            print(f"  Protocol  : Other ({proto})")
-            print(f"  Source    : {src_ip}")
-            print(f"  Dest      : {dst_ip}")
-
-        if packet.haslayer('Raw'):
-            payload = packet['Raw'].load
-            print(f"  Payload   : {payload[:60]}")
-
-    print("  " + "-" * 40)
-
-
-def main():
-    print("Network Packet Analyzer — @ixsecure")
-    print("=====================================")
-    interface = input("Interface (default: eth0): ").strip() or "eth0"
-    count = input("Number of packets to capture (0 = unlimited): ").strip()
-    count = int(count) if count.isdigit() else 0
-
-    print(f"\nSniffing on {interface}... Press Ctrl+C to stop.\n")
-    sniff(iface=interface, prn=analyze_packet, count=count, store=False)
-
-
-if __name__ == "__main__":
-    main()
+# Run linter
+cargo clippy --workspace
 ```
 
 ---
 
-## Protocols Explained
+## License
 
-| Protocol | Layer | Common Use |
-|---|---|---|
-| TCP | Transport | HTTP, HTTPS, SSH, FTP — reliable, connection-based |
-| UDP | Transport | DNS, DHCP, VoIP — fast, connectionless |
-| ICMP | Network | Ping, traceroute — diagnostic and error reporting |
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-## Security Context
-
-A packet analyzer is one of the most powerful tools in a security professional's arsenal. It is used for:
-
-- **Network forensics** — investigating suspicious traffic after an incident
-- **Intrusion detection** — spotting abnormal patterns in real-time
-- **Protocol analysis** — understanding how applications communicate
-- **Penetration testing** — identifying cleartext credentials or sensitive data in transit
-
-Tools like **Wireshark** and **tcpdump** are built on the same principles as this project.
-
----
-
-## What I learned
-
-- Using **Scapy** for packet sniffing and dissection in Python
-- Structure of IP, TCP, UDP, and ICMP packet headers
-- How data is **encapsulated** across network layers (OSI model)
-- Why **cleartext protocols** (HTTP, FTP, Telnet) are dangerous
-- The difference between **passive sniffing** and **active interception**
-- Importance of root privileges in low-level network operations
-
----
-
-## Ethical Notice
-
-> This tool is developed for **educational and authorized use only**.
-> Capturing network traffic without explicit permission is illegal in most countries.
-> Always use this tool on networks you own or have written authorization to test.
-
----
-
-## Author
-
-**Richmond Konan** — Junior Penetration Tester | Offensive Security | Cote d'Ivoire
-
-- LinkedIn: https://linkedin.com/in/richmonddelmas
-- GitHub: https://github.com/ixsecure
-- Email: delmasrichmond@gmail.com
-
----
-
-## Topics
-
-`python` `scapy` `network-security` `packet-analyzer` `packet-sniffing` `cybersecurity` `tcp-ip` `network-forensics` `penetration-testing` `prodigy-infotech`
+<div align="center">
+Built with ❤️ and Rust by the <a href="https://github.com/Nehonix-Team">Nehonix Team</a>
+</div>
