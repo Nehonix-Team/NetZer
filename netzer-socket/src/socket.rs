@@ -84,3 +84,47 @@ impl Drop for RawSocket {
         }
     }
 }
+
+pub fn drop_privileges() -> io::Result<()> {
+    unsafe {
+        let current_uid = libc::getuid();
+        if current_uid != 0 {
+            return Ok(());
+        }
+
+        let sudo_uid_str = std::env::var("SUDO_UID").ok();
+        let sudo_gid_str = std::env::var("SUDO_GID").ok();
+
+        if let (Some(uid_str), Some(gid_str)) = (sudo_uid_str, sudo_gid_str) {
+            let uid: libc::uid_t = uid_str.parse().map_err(|_| {
+                io::Error::new(io::ErrorKind::InvalidData, "Failed to parse SUDO_UID")
+            })?;
+            let gid: libc::gid_t = gid_str.parse().map_err(|_| {
+                io::Error::new(io::ErrorKind::InvalidData, "Failed to parse SUDO_GID")
+            })?;
+
+            if libc::setgid(gid) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+
+            if libc::setuid(uid) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+
+            println!(" [🔒] Privilege Dropping: Swapped from root to UID={}, GID={}", uid, gid);
+        } else {
+            let nobody_uid: libc::uid_t = 65534;
+            let nobody_gid: libc::gid_t = 65534;
+
+            if libc::setgid(nobody_gid) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if libc::setuid(nobody_uid) < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            println!(" [🔒] Privilege Dropping: Swapped from root to 'nobody' (UID={}, GID={})", nobody_uid, nobody_gid);
+        }
+    }
+    Ok(())
+}
+

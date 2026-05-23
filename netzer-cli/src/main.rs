@@ -66,6 +66,12 @@ fn main() {
         }
     };
     
+    if let Err(e) = netzer_socket::socket::drop_privileges() {
+        eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to drop root privileges.".white());
+        eprintln!("     Details: {}", e.to_string().bright_black());
+        process::exit(1);
+    }
+    
     let mut buffer = vec![0u8; 65535];
     
     loop {
