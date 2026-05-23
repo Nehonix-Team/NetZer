@@ -383,160 +383,252 @@ fn handle_arp(
     }
 }
 
-fn main() {
-    let args = Args::parse();
-    
-    let socket = match RawSocket::new(&args.interface) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to open raw socket.".white());
-            eprintln!("     Details: {}", e.to_string().bright_black());
-            
-            let hint = match e.raw_os_error() {
-                Some(1) | Some(13) => "Hint: NetZer requires CAP_NET_RAW. Try running with 'sudo'.",
-                Some(19) => "Hint: The specified interface does not exist. Check 'ifconfig' or 'ip link'.",
-                _ => "Hint: Ensure the interface is up and you have sufficient permissions.",
-            };
-            eprintln!("     {}\n", hint.bright_black());
-            process::exit(1);
-        }
+fn print_status_line(label: &str, value: &str) {
+    println!(" [SYSTEM] {}: {}", label, value.bright_green());
+    println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼─────────────────────────────────────┼────────".bright_black());
+}
+
+fn process_packet(
+    packet_data: &[u8],
+    size: usize,
+    pcap_writer: &mut Option<PcapWriter>,
+    json_writer: &mut Option<JsonWriter>,
+    stream_tracker: &mut Option<TcpStreamTracker>,
+    show_hexdump: bool,
+) {
+    // Write raw frame to PCAP if enabled
+    if let Some(ref mut writer) = pcap_writer {
+        let _ = writer.write_packet(packet_data);
+    }
+
+    // Hex/ASCII dump before protocol analysis
+    if show_hexdump {
+        let dump = hexdump(packet_data);
+        println!("{}", dump.bright_black());
+    }
+
+    let (eth_frame, payload) = match EthernetFrame::parse(packet_data) {
+        Ok(res) => res,
+        Err(_) => return,
     };
 
-    // Apply BPF filters if requested (MUST be done while we still have root privileges)
-    if let Some(port) = args.filter_port {
-        if let Err(e) = socket.attach_filter_port(port) {
-            eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to attach BPF port filter.".white());
-            eprintln!("     Details: {}", e.to_string().bright_black());
-            process::exit(1);
-        }
-    }
+    let now = Local::now();
+    let time_str = now.format("%H:%M:%S%.3f").to_string();
 
-    if let Some(ref proto) = args.filter_proto {
-        if let Err(e) = socket.attach_filter_proto(proto) {
-            eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to attach BPF protocol filter.".white());
-            eprintln!("     Details: {}", e.to_string().bright_black());
-            process::exit(1);
-        }
-    }
+    match eth_frame.ethertype() {
+        EtherType::Ipv4 => {
+            let (ipv4_header, ip_payload) = match Ipv4Header::parse(payload) {
+                Ok(res) => res,
+                Err(_) => return,
+            };
 
-    // Initialize writers BEFORE dropping privileges in case the output directories require permissions
-    let mut pcap_writer = if let Some(ref path) = args.export_pcap {
-        match PcapWriter::create(path) {
-            Ok(w) => Some(w),
+            let src_ip = format!("{}", ipv4_header.source());
+            let dst_ip = format!("{}", ipv4_header.destination());
+
+            match ipv4_header.protocol() {
+                6 => {
+                    // Parse TCP to extract ports and payload for stream tracker
+                    if let Ok((tcp_header, tcp_payload)) = TcpHeader::parse(ip_payload) {
+                        let src_port = tcp_header.source_port();
+                        let dst_port = tcp_header.destination_port();
+
+                        // Feed to stream reassembler if enabled
+                        if let Some(ref mut tracker) = stream_tracker {
+                            if let Some((_key, data)) = tracker.feed(&src_ip, src_port, &dst_ip, dst_port, tcp_payload) {
+                                let printable: String = data.iter().map(|&b| {
+                                    let c = b as char;
+                                    if c.is_ascii_graphic() || c == ' ' || c == '\n' || c == '\r' { c } else { '.' }
+                                }).collect();
+                                println!("{}", " ─── Stream Reassembly ────────────────────────────────────────────────────────────────────────────────────────────".bright_blue());
+                                println!("{}", printable.bright_white());
+                                println!("{}", " ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────".bright_blue());
+                            }
+                        }
+
+                        // Re-parse ip_payload so handle_tcp can use it
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer);
+                    } else {
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer);
+                    }
+                }
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                _ => {}
+            }
+        }
+        EtherType::Ipv6 => {
+            let (ipv6_header, ip_payload) = match Ipv6Header::parse(payload) {
+                Ok(res) => res,
+                Err(_) => return,
+            };
+
+            let src_ip = format!("{}", ipv6_header.source());
+            let dst_ip = format!("{}", ipv6_header.destination());
+
+            match ipv6_header.next_header() {
+                6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                _ => {}
+            }
+        }
+        EtherType::Arp => {
+            handle_arp(payload, &time_str, size, json_writer);
+        }
+        _ => {}
+    }
+}
+
+fn main() {
+    let args = Args::parse();
+
+    // Create socket BEFORE dropping privileges — AF_PACKET requires CAP_NET_RAW
+    let (raw_socket, ring_socket) = if args.ring_buffer {
+        match RingSocket::new(&args.interface) {
+            Ok(s) => (None, Some(s)),
             Err(e) => {
-                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to create PCAP file.".white());
+                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to open ring socket (TPACKET_V3).".white());
                 eprintln!("     Details: {}", e.to_string().bright_black());
+                eprintln!("     {}\n", "Hint: TPACKET_V3 requires a kernel >= 3.2 and CAP_NET_RAW.".bright_black());
                 process::exit(1);
             }
         }
     } else {
-        None
+        match RawSocket::new(&args.interface) {
+            Ok(s) => (Some(s), None),
+            Err(e) => {
+                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to open raw socket.".white());
+                eprintln!("     Details: {}", e.to_string().bright_black());
+                let hint = match e.raw_os_error() {
+                    Some(1) | Some(13) => "Hint: NetZer requires CAP_NET_RAW. Try running with 'sudo'.",
+                    Some(19) => "Hint: The specified interface does not exist. Check 'ifconfig' or 'ip link'.",
+                    _ => "Hint: Ensure the interface is up and you have sufficient permissions.",
+                };
+                eprintln!("     {}\n", hint.bright_black());
+                process::exit(1);
+            }
+        }
     };
+
+    // Apply BPF filters (must be before privilege drop)
+    if let Some(ref sock) = raw_socket {
+        if let Some(port) = args.filter_port {
+            if let Err(e) = sock.attach_filter_port(port) {
+                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to attach BPF port filter.".white());
+                eprintln!("     Details: {}", e.to_string().bright_black());
+                process::exit(1);
+            }
+        }
+        if let Some(ref proto) = args.filter_proto {
+            if let Err(e) = sock.attach_filter_proto(proto) {
+                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to attach BPF protocol filter.".white());
+                eprintln!("     Details: {}", e.to_string().bright_black());
+                process::exit(1);
+            }
+        }
+    }
+
+    // Create export files before privilege drop (may need write access to current dir)
+    let mut pcap_writer = if let Some(ref path) = args.export_pcap {
+        match PcapWriter::create(path) {
+            Ok(w) => Some(w),
+            Err(e) => {
+                eprintln!("\n {} Failed to create PCAP file: {}", "[-] ERROR:".bright_red().bold(), e);
+                process::exit(1);
+            }
+        }
+    } else { None };
 
     let mut json_writer = if let Some(ref path) = args.export_json {
         match JsonWriter::create(path) {
             Ok(w) => Some(w),
             Err(e) => {
-                eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to create JSON file.".white());
-                eprintln!("     Details: {}", e.to_string().bright_black());
+                eprintln!("\n {} Failed to create JSON file: {}", "[-] ERROR:".bright_red().bold(), e);
                 process::exit(1);
             }
         }
-    } else {
-        None
-    };
-    
-    // Now drop root privileges safely
+    } else { None };
+
+    // Drop root privileges
     if let Err(e) = netzer_socket::socket::drop_privileges() {
         eprintln!("\n {} {}", "[-] ERROR:".bright_red().bold(), "Failed to drop root privileges.".white());
         eprintln!("     Details: {}", e.to_string().bright_black());
         process::exit(1);
     }
 
-    // Print banner only after socket setup and privilege dropping succeed
+    // Initialize optional stream tracker (non-root, safe to allocate here)
+    let mut stream_tracker: Option<TcpStreamTracker> = if args.follow_streams {
+        Some(TcpStreamTracker::new())
+    } else {
+        None
+    };
+
     print_banner(&args.interface);
 
+    if args.ring_buffer {
+        print_status_line("Capture Mode", "TPACKET_V3 Ring Buffer (zero-copy mmap)");
+    }
+    if args.hexdump {
+        print_status_line("Hex/ASCII Dump", "Active (printing raw bytes for each packet)");
+    }
+    if args.follow_streams {
+        print_status_line("Follow Streams", "Active (TCP stream reassembly enabled)");
+    }
     if args.filter_port.is_some() || args.filter_proto.is_some() {
         println!(" [SECURITY] BPF Kernel Filters Active:");
         if let Some(port) = args.filter_port {
-            println!("   - Port: {}", port);
+            println!("   - Port: {}", port.to_string().bright_yellow());
         }
         if let Some(ref proto) = args.filter_proto {
-            println!("   - Protocol: {}", proto.to_uppercase());
+            println!("   - Protocol: {}", proto.to_uppercase().bright_yellow());
         }
         println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼─────────────────────────────────────┼────────".bright_black());
     }
-
     if let Some(ref path) = args.export_pcap {
-        println!(" [SYSTEM] Export: PCAP recording active -> {}", path.bright_green());
-        println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼─────────────────────────────────────┼────────".bright_black());
+        print_status_line("PCAP Export", path);
     }
     if let Some(ref path) = args.export_json {
-        println!(" [SYSTEM] Export: JSON metadata logging active -> {}", path.bright_green());
-        println!("{}", "────────────────┼───────┼───────────────────────┼───────────────────────┼─────────────────────────────────────┼────────".bright_black());
+        print_status_line("JSON Export", path);
     }
-    
-    let mut buffer = vec![0u8; 65535];
-    
-    loop {
-        match socket.recv(&mut buffer) {
-            Ok(size) => {
-                let packet_data = &buffer[..size];
-                
-                // Write raw packet to PCAP file if enabled
-                if let Some(ref mut writer) = pcap_writer {
-                    let _ = writer.write_packet(packet_data);
-                }
-                
-                let (eth_frame, payload) = match EthernetFrame::parse(packet_data) {
-                    Ok(res) => res,
-                    Err(_) => continue,
-                };
-                
-                let now = Local::now();
-                let time_str = now.format("%H:%M:%S%.3f").to_string();
-                
-                match eth_frame.ethertype() {
-                    EtherType::Ipv4 => {
-                        let (ipv4_header, ip_payload) = match Ipv4Header::parse(payload) {
-                            Ok(res) => res,
-                            Err(_) => continue,
-                        };
-                        
-                        let src_ip = format!("{}", ipv4_header.source());
-                        let dst_ip = format!("{}", ipv4_header.destination());
-                        
-                        match ipv4_header.protocol() {
-                            6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            _ => {}
-                        }
-                    }
-                    EtherType::Ipv6 => {
-                        let (ipv6_header, ip_payload) = match Ipv6Header::parse(payload) {
-                            Ok(res) => res,
-                            Err(_) => continue,
-                        };
-                        
-                        let src_ip = format!("{}", ipv6_header.source());
-                        let dst_ip = format!("{}", ipv6_header.destination());
-                        
-                        match ipv6_header.next_header() {
-                            6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, &mut json_writer),
-                            _ => {}
-                        }
-                    }
-                    EtherType::Arp => {
-                        handle_arp(payload, &time_str, size, &mut json_writer);
-                    }
-                    _ => {}
-                }
+
+    // -----------------------------------------------------------------------
+    // Main capture loop
+    // -----------------------------------------------------------------------
+    if let Some(mut ring) = ring_socket {
+        // TPACKET_V3 high-throughput path
+        loop {
+            if let Err(e) = ring.recv_block(|frame| {
+                process_packet(
+                    frame,
+                    frame.len(),
+                    &mut pcap_writer,
+                    &mut json_writer,
+                    &mut stream_tracker,
+                    args.hexdump,
+                );
+            }) {
+                eprintln!(" [SYSTEM] Ring buffer read error: {}", e);
             }
-            Err(e) => {
-                eprintln!(" [SECURITY] READ ERROR: {}", e);
+        }
+    } else if let Some(ref sock) = raw_socket {
+        // Classic recv() path
+        let mut buffer = vec![0u8; 65535];
+        loop {
+            match sock.recv(&mut buffer) {
+                Ok(size) => {
+                    let packet_data = buffer[..size].to_vec();
+                    process_packet(
+                        &packet_data,
+                        size,
+                        &mut pcap_writer,
+                        &mut json_writer,
+                        &mut stream_tracker,
+                        args.hexdump,
+                    );
+                }
+                Err(e) => {
+                    eprintln!(" [SYSTEM] READ ERROR: {}", e);
+                }
             }
         }
     }
