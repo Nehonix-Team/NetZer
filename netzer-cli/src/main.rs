@@ -397,7 +397,7 @@ fn process_packet(
     show_hexdump: bool,
 ) {
     // Write raw frame to PCAP if enabled
-    if let Some(ref mut writer) = pcap_writer {
+    if let Some(writer) = pcap_writer {
         let _ = writer.write_packet(packet_data);
     }
 
@@ -433,7 +433,7 @@ fn process_packet(
                         let dst_port = tcp_header.destination_port();
 
                         // Feed to stream reassembler if enabled
-                        if let Some(ref mut tracker) = stream_tracker {
+                        if let Some(tracker) = stream_tracker {
                             if let Some((_key, data)) = tracker.feed(&src_ip, src_port, &dst_ip, dst_port, tcp_payload) {
                                 let printable: String = data.iter().map(|&b| {
                                     let c = b as char;
