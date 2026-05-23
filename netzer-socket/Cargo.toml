@@ -6,3 +6,4 @@ authors.workspace = true
 
 [dependencies]
 netzer-core = { path = "../netzer-core" }
+libc = "0.2"

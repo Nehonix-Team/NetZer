@@ -1,0 +1,86 @@
+use std::ffi::CString;
+use std::io;
+
+pub struct RawSocket {
+    fd: i32,
+}
+
+impl RawSocket {
+    pub fn new(interface_name: &str) -> io::Result<Self> {
+        unsafe {
+            // AF_PACKET (17) / SOCK_RAW (3) / ETH_P_ALL (0x0003 in network byte order -> 0x0300)
+            let fd = libc::socket(libc::AF_PACKET, libc::SOCK_RAW, 0x0300);
+            if fd < 0 {
+                return Err(io::Error::last_os_error());
+            }
+
+            // Get interface index (SIOCGIFINDEX)
+            let c_ifname = CString::new(interface_name)?;
+            
+            #[repr(C)]
+            struct ifreq {
+                ifr_name: [libc::c_char; libc::IFNAMSIZ],
+                ifr_ifru: libc::c_int,
+            }
+            
+            let mut ifr: ifreq = std::mem::zeroed();
+            let name_bytes = c_ifname.as_bytes_with_nul();
+            if name_bytes.len() > libc::IFNAMSIZ {
+                return Err(io::Error::new(io::ErrorKind::InvalidInput, "Interface name too long"));
+            }
+            
+            for i in 0..name_bytes.len() {
+                ifr.ifr_name[i] = name_bytes[i] as libc::c_char;
+            }
+
+            if libc::ioctl(fd, libc::SIOCGIFINDEX, &mut ifr) < 0 {
+                let err = io::Error::last_os_error();
+                libc::close(fd);
+                return Err(err);
+            }
+
+            // Bind socket to the interface
+            let mut sll: libc::sockaddr_ll = std::mem::zeroed();
+            sll.sll_family = libc::AF_PACKET as u16;
+            sll.sll_protocol = 0x0300; // ETH_P_ALL
+            sll.sll_ifindex = ifr.ifr_ifru;
+
+            if libc::bind(
+                fd,
+                &sll as *const _ as *const libc::sockaddr,
+                std::mem::size_of::<libc::sockaddr_ll>() as u32,
+            ) < 0 {
+                let err = io::Error::last_os_error();
+                libc::close(fd);
+                return Err(err);
+            }
+
+            Ok(Self { fd })
+        }
+    }
+
+    pub fn recv(&self, buffer: &mut [u8]) -> io::Result<usize> {
+        unsafe {
+            let res = libc::recv(
+                self.fd,
+                buffer.as_mut_ptr() as *mut libc::c_void,
+                buffer.len(),
+                0,
+            );
+            
+            if res < 0 {
+                Err(io::Error::last_os_error())
+            } else {
+                Ok(res as usize)
+            }
+        }
+    }
+}
+
+impl Drop for RawSocket {
+    fn drop(&mut self) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
+}
