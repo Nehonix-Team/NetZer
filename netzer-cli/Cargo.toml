@@ -1,0 +1,9 @@
+[package]
+name = "netzer-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+netzer-core = { path = "../netzer-core" }
+netzer-socket = { path = "../netzer-socket" }
