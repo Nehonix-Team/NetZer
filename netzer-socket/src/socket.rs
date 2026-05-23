@@ -111,7 +111,7 @@ pub fn drop_privileges() -> io::Result<()> {
                 return Err(io::Error::last_os_error());
             }
 
-            println!(" [🔒] Privilege Dropping: Swapped from root to UID={}, GID={}", uid, gid);
+            println!(" [SECURITY] Privilege Dropping: Swapped from root to UID={}, GID={}", uid, gid);
         } else {
             let nobody_uid: libc::uid_t = 65534;
             let nobody_gid: libc::gid_t = 65534;
@@ -122,7 +122,7 @@ pub fn drop_privileges() -> io::Result<()> {
             if libc::setuid(nobody_uid) < 0 {
                 return Err(io::Error::last_os_error());
             }
-            println!(" [🔒] Privilege Dropping: Swapped from root to 'nobody' (UID={}, GID={})", nobody_uid, nobody_gid);
+            println!(" [SECURITY] Privilege Dropping: Swapped from root to 'nobody' (UID={}, GID={})", nobody_uid, nobody_gid);
         }
     }
     Ok(())
