@@ -1,6 +1,7 @@
 #![allow(unused_assignments)]
 use clap::Parser;
 use netzer_core::ethernet::{EthernetFrame, EtherType};
+use netzer_core::hexdump::hexdump;
 use netzer_core::ipv4::Ipv4Header;
 use netzer_core::ipv6::Ipv6Header;
 use netzer_core::arp::ArpPacket;
@@ -9,7 +10,8 @@ use netzer_core::tcp::TcpHeader;
 use netzer_core::udp::UdpHeader;
 use netzer_core::dns::DnsQuery;
 use netzer_core::tls::TlsClientHello;
-use netzer_socket::socket::RawSocket;
+use netzer_core::tcp_stream::TcpStreamTracker;
+use netzer_socket::socket::{RawSocket, RingSocket};
 use std::process;
 use std::fs::File;
 use std::io::Write;
@@ -39,6 +41,18 @@ struct Args {
     /// Export parsed packet metadata to a JSON lines file
     #[arg(long)]
     export_json: Option<String>,
+
+    /// Print a full hex/ASCII dump of each captured packet
+    #[arg(long, default_value_t = false)]
+    hexdump: bool,
+
+    /// Reassemble TCP streams and display HTTP sessions when detected
+    #[arg(long, default_value_t = false)]
+    follow_streams: bool,
+
+    /// Use TPACKET_V3 ring buffer (mmap) instead of recv() for high-throughput capture
+    #[arg(long, default_value_t = false)]
+    ring_buffer: bool,
 }
 
 struct PcapWriter {
