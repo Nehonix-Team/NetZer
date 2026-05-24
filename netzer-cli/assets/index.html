@@ -1,820 +1,1227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NetZer // Live Network Monitor</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
-        :root {
-            --bg-main: #090d16;
-            --bg-card: #111827;
-            --bg-input: #1f2937;
-            --border: rgba(255, 255, 255, 0.08);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --primary: #10b981;
-            --primary-glow: rgba(16, 185, 129, 0.15);
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --info: #3b82f6;
-            --magenta: #d946ef;
-        }
+      :root {
+        --bg-main: #090d16;
+        --bg-card: #0f1623;
+        --bg-elevated: #141d2e;
+        --bg-input: #1a2235;
+        --border: rgba(255, 255, 255, 0.07);
+        --border-bright: rgba(255, 255, 255, 0.12);
+        --text-main: #e8edf5;
+        --text-muted: #6b7a99;
+        --text-dim: #4a5568;
+        --primary: #00d4aa;
+        --primary-dim: rgba(0, 212, 170, 0.12);
+        --primary-glow: rgba(0, 212, 170, 0.25);
+        --danger: #ff4d6a;
+        --warning: #f5a623;
+        --info: #4a9eff;
+        --magenta: #c778f0;
+        --accent-blue: #1e3a5f;
+      }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
 
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-input);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #374151;
-        }
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1f2d44;
+        border-radius: 2px;
+      }
 
-        header {
-            background-color: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
+      /* ═══════════════ HEADER ═══════════════ */
+      header {
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        height: 52px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+        flex-shrink: 0;
+      }
 
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
 
-        .logo-icon {
-            color: var(--primary);
-            animation: pulse 2s infinite;
-        }
+      .logo-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
 
-        h1 {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            font-family: 'JetBrains Mono', monospace;
-        }
+      .logo-img {
+        height: 28px;
+        width: auto;
+      }
 
-        .h1-light {
-            color: var(--text-muted);
-            font-weight: 300;
-        }
+      .header-title {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--text-main);
+        text-transform: uppercase;
+      }
 
-        .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--primary);
-            padding: 6px 12px;
-            border-radius: 9999px;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            transition: all 0.3s ease;
-        }
+      .header-divider {
+        color: var(--text-dim);
+        margin: 0 4px;
+      }
 
-        .status-badge.disconnected {
-            background: rgba(239, 44, 68, 0.1);
-            color: var(--danger);
-            border-color: rgba(239, 44, 68, 0.2);
-        }
+      .header-subtitle {
+        color: var(--text-muted);
+        font-weight: 400;
+      }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: currentColor;
-            box-shadow: 0 0 8px currentColor;
-        }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
 
-        .status-dot.blink {
-            animation: pulse 1s infinite alternate;
-        }
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: "JetBrains Mono", monospace;
+        letter-spacing: 0.5px;
+        color: var(--primary);
+        background: rgba(0, 212, 170, 0.08);
+        border: 1px solid rgba(0, 212, 170, 0.2);
+        padding: 5px 12px;
+        border-radius: 4px;
+      }
 
-        .app-container {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            flex: 1;
-            overflow: hidden;
-        }
+      .status-badge.disconnected {
+        color: var(--danger);
+        background: rgba(255, 77, 106, 0.08);
+        border-color: rgba(255, 77, 106, 0.2);
+      }
 
-        .main-panel {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border-right: 1px solid var(--border);
-        }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 6px currentColor;
+      }
 
-        .toolbar {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 12px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-        }
+      .status-dot.blink {
+        animation: dotBlink 1.4s ease-in-out infinite;
+      }
 
-        .filters-group {
-            display: flex;
-            gap: 8px;
+      @keyframes dotBlink {
+        0%,
+        100% {
+          opacity: 1;
         }
-
-        .filter-btn {
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 12px;
-            transition: all 0.2s ease;
+        50% {
+          opacity: 0.3;
         }
+      }
 
-        .filter-btn:hover {
-            color: var(--text-main);
-            border-color: #4b5563;
+      /* ═══════════════ STATS ROW ═══════════════ */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--border);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .stat-tile {
+        background: var(--bg-card);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .stat-tile-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--primary-dim);
+        border: 1px solid rgba(0, 212, 170, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        flex-shrink: 0;
+      }
+
+      .stat-tile-body {
+      }
+
+      .stat-tile-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+
+      .stat-tile-val {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-main);
+        line-height: 1;
+      }
+
+      .stat-tile-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      /* ═══════════════ LAYOUT ═══════════════ */
+      .app-container {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        flex: 1;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .main-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: 1px solid var(--border);
+        min-height: 0;
+      }
+
+      /* ═══════════════ TOOLBAR ═══════════════ */
+      .toolbar {
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .filters-group {
+        display: flex;
+        gap: 4px;
+      }
+
+      .filter-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 5px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        font-family: "Inter", sans-serif;
+        letter-spacing: 0.3px;
+        transition: all 0.15s ease;
+      }
+
+      .filter-btn:hover {
+        background: var(--bg-input);
+        color: var(--text-main);
+      }
+
+      .filter-btn.active {
+        background: var(--primary-dim);
+        color: var(--primary);
+        border-color: rgba(0, 212, 170, 0.25);
+      }
+
+      .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .search-container {
+        position: relative;
+      }
+
+      .search-input {
+        width: 220px;
+        background: var(--bg-input);
+        border: 1px solid var(--border-bright);
+        color: var(--text-main);
+        padding: 7px 12px 7px 32px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: "Inter", sans-serif;
+        outline: none;
+        transition: all 0.2s;
+      }
+
+      .search-input::placeholder {
+        color: var(--text-dim);
+      }
+
+      .search-input:focus {
+        border-color: rgba(0, 212, 170, 0.4);
+        background: var(--bg-elevated);
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-dim);
+        pointer-events: none;
+      }
+
+      .icon-btn {
+        width: 30px;
+        height: 30px;
+        background: var(--bg-input);
+        border: 1px solid var(--border-bright);
+        border-radius: 4px;
+        cursor: pointer;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+
+      .icon-btn:hover {
+        color: var(--text-main);
+        background: var(--bg-elevated);
+      }
+
+      /* ═══════════════ TABLE ═══════════════ */
+      .table-container {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+
+      thead tr {
+        background: var(--bg-card);
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        padding: 9px 14px;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-bright);
+        text-align: left;
+        background: var(--bg-card);
+        z-index: 1;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      td {
+        padding: 9px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0;
+      }
+
+      tr {
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.018);
+      }
+
+      tr.selected td {
+        background: rgba(0, 212, 170, 0.06) !important;
+      }
+
+      tr.selected td:first-child {
+        border-left: 2px solid var(--primary);
+      }
+
+      /* proto badges */
+      .proto-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+
+      .proto-tcp {
+        background: rgba(74, 158, 255, 0.12);
+        color: var(--info);
+      }
+      .proto-udp {
+        background: rgba(0, 212, 170, 0.12);
+        color: var(--primary);
+      }
+      .proto-icmp {
+        background: rgba(255, 77, 106, 0.12);
+        color: var(--danger);
+      }
+      .proto-icmp6 {
+        background: rgba(255, 77, 106, 0.12);
+        color: var(--danger);
+      }
+      .proto-arp {
+        background: rgba(245, 166, 35, 0.12);
+        color: var(--warning);
+      }
+      .proto-tls {
+        background: rgba(199, 120, 240, 0.12);
+        color: var(--magenta);
+      }
+      .proto-dns {
+        background: rgba(245, 166, 35, 0.12);
+        color: var(--warning);
+      }
+
+      /* table footer */
+      .table-footer {
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border);
+        background: var(--bg-card);
+        flex-shrink: 0;
+      }
+
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--primary);
+        box-shadow: 0 0 6px var(--primary);
+        animation: dotBlink 1.4s ease-in-out infinite;
+      }
+
+      /* ═══════════════ SIDEBAR ═══════════════ */
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        background: var(--bg-card);
+        min-height: 0;
+      }
+
+      .sidebar-section {
+        border-bottom: 1px solid var(--border);
+        padding: 16px 18px;
+        flex-shrink: 0;
+      }
+
+      .sidebar-section.grow {
+        flex: 1;
+        border-bottom: none;
+      }
+
+      .section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .section-title i {
+        color: var(--primary);
+      }
+
+      /* metrics grid */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+
+      .metric-cell {
+        background: var(--bg-elevated);
+        padding: 12px 14px;
+      }
+
+      .metric-val {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text-main);
+        line-height: 1;
+      }
+
+      .metric-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      /* mini chart */
+      .mini-chart {
+        height: 50px;
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        margin-top: 12px;
+      }
+
+      .mini-bar-wrap {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+
+      .mini-bar {
+        width: 100%;
+        background: linear-gradient(
+          180deg,
+          var(--primary) 0%,
+          rgba(0, 212, 170, 0.2) 100%
+        );
+        border-radius: 2px 2px 0 0;
+        transition: height 0.3s ease;
+      }
+
+      /* top targets */
+      .targets-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .target-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        gap: 8px;
+      }
+
+      .target-key {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--text-main);
+        flex: 1;
+      }
+
+      .target-bar-wrap {
+        width: 80px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .target-bar {
+        height: 100%;
+        background: var(--primary);
+        border-radius: 2px;
+      }
+
+      .target-val {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 11px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      /* packet inspection */
+      .inspection-content {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+      }
+
+      .insp-section-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 8px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .insp-row {
+        display: flex;
+        margin-bottom: 5px;
+        gap: 8px;
+      }
+
+      .insp-key {
+        width: 90px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+
+      .hexdump-area {
+        margin-top: 10px;
+        background: #06090f;
+        border: 1px solid var(--border);
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        white-space: pre;
+        color: var(--primary);
+        font-size: 10px;
+        line-height: 1.5;
+        max-height: 180px;
+      }
+
+      .placeholder-text {
+        color: var(--text-dim);
+        text-align: center;
+        padding: 30px 0;
+        font-size: 12px;
+        font-style: italic;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.5;
         }
-
-        .filter-btn.active {
-            background: var(--primary-glow);
-            color: var(--primary);
-            border-color: var(--primary);
+        50% {
+          opacity: 1;
         }
-
-        .search-container {
-            position: relative;
-            width: 250px;
-        }
-
-        .search-input {
-            width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 8px 12px 8px 36px;
-            border-radius: 6px;
-            font-size: 13px;
-            outline: none;
-            transition: all 0.2s ease;
-        }
-
-        .search-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px var(--primary-glow);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            pointer-events: none;
-        }
-
-        .table-container {
-            flex: 1;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            text-align: left;
-        }
-
-        th {
-            background: var(--bg-card);
-            position: sticky;
-            top: 0;
-            padding: 10px 16px;
-            font-weight: 600;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
-            z-index: 1;
-        }
-
-        td {
-            padding: 10px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        tr {
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-
-        tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        tr.selected {
-            background: rgba(16, 185, 129, 0.08) !important;
-            border-left: 3px solid var(--primary);
-        }
-
-        .proto-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-
-        .proto-tcp { background: rgba(59, 130, 246, 0.15); color: var(--info); }
-        .proto-udp { background: rgba(16, 185, 129, 0.15); color: var(--primary); }
-        .proto-icmp { background: rgba(239, 44, 68, 0.15); color: var(--danger); }
-        .proto-icmp6 { background: rgba(239, 44, 68, 0.15); color: var(--danger); }
-        .proto-arp { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .proto-tls { background: rgba(217, 70, 239, 0.15); color: var(--magenta); }
-        .proto-dns { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            background: #0d131f;
-        }
-
-        .sidebar-section {
-            border-bottom: 1px solid var(--border);
-            padding: 20px;
-        }
-
-        .section-title {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-
-        .stat-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            padding: 12px;
-            border-radius: 8px;
-        }
-
-        .stat-val {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-
-        .stats-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .stats-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-        }
-
-        .stats-item-key {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 250px;
-        }
-
-        .stats-item-val {
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .chart-container {
-            height: 120px;
-            display: flex;
-            align-items: flex-end;
-            gap: 4px;
-            padding-top: 10px;
-        }
-
-        .chart-bar-wrapper {
-            flex: 1;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            position: relative;
-        }
-
-        .chart-bar {
-            width: 100%;
-            background: linear-gradient(180deg, var(--primary) 0%, rgba(16, 185, 129, 0.3) 100%);
-            border-top-left-radius: 3px;
-            border-top-right-radius: 3px;
-            transition: height 0.3s ease;
-        }
-
-        .packet-details {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .details-header {
-            font-size: 13px;
-            color: var(--primary);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 6px;
-        }
-
-        .details-row {
-            display: flex;
-            margin-bottom: 4px;
-        }
-
-        .details-label {
-            width: 120px;
-            color: var(--text-muted);
-        }
-
-        .hexdump-area {
-            background: #06090f;
-            border: 1px solid var(--border);
-            padding: 12px;
-            border-radius: 6px;
-            overflow-x: auto;
-            white-space: pre;
-            color: #10b981;
-            font-size: 11px;
-            line-height: 1.4;
-            max-height: 250px;
-        }
-
-        .placeholder-text {
-            color: var(--text-muted);
-            text-align: center;
-            padding: 40px 0;
-            font-style: italic;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; transform: scale(1.05); }
-            100% { opacity: 0.6; }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <!-- ═══════════ HEADER ═══════════ -->
     <header>
-        <div class="logo-section">
-            <i data-lucide="shield" class="logo-icon"></i>
-            <h1>NETZER <span class="h1-light">// DEEP PACKET ANALYZER</span></h1>
+      <div class="header-left">
+        <div class="logo-brand">
+          <svg
+            class="logo-img"
+            viewBox="0 0 120 40"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <!-- Shield icon -->
+            <path
+              d="M8 4 L20 4 L20 18 Q20 26 14 30 Q8 26 8 18 Z"
+              fill="none"
+              stroke="#00d4aa"
+              stroke-width="2"
+            />
+            <path
+              d="M11 14 L13.5 16.5 L18 11"
+              fill="none"
+              stroke="#00d4aa"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <!-- NetZer text -->
+            <text
+              x="28"
+              y="24"
+              font-family="'JetBrains Mono', monospace"
+              font-size="16"
+              font-weight="700"
+              fill="#e8edf5"
+              letter-spacing="1"
+            >
+              NetZer
+            </text>
+          </svg>
         </div>
+        <span
+          style="color: var(--border-bright); font-size: 18px; font-weight: 200"
+          >/</span
+        >
+        <span
+          class="header-title"
+          style="
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 2px;
+          "
+          >DEEP PACKET ANALYZER</span
+        >
+      </div>
+      <div class="header-right">
         <div id="connection-status" class="status-badge">
-            <div class="status-dot blink"></div>
-            <span id="status-text">LIVE MONITORING ACTIVE</span>
+          <div class="status-dot blink"></div>
+          <span id="status-text">LIVE MONITORING ACTIVE</span>
         </div>
+      </div>
     </header>
 
+    <!-- ═══════════ STATS ROW ═══════════ -->
+    <div class="stats-row">
+      <div class="stat-tile">
+        <div class="stat-tile-icon">
+          <i data-lucide="activity" size="16"></i>
+        </div>
+        <div class="stat-tile-body">
+          <div class="stat-tile-label">Packets / Sec</div>
+          <div class="stat-tile-val" id="stat-pps">
+            0
+            <span
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--text-muted);
+              "
+              >pkt/s</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div
+          class="stat-tile-icon"
+          style="
+            background: rgba(74, 158, 255, 0.1);
+            border-color: rgba(74, 158, 255, 0.15);
+          "
+        >
+          <i data-lucide="crosshair" size="16" style="color: var(--info)"></i>
+        </div>
+        <div class="stat-tile-body">
+          <div class="stat-tile-label">Top Target IP</div>
+          <div class="stat-tile-val" id="stat-top-ip" style="font-size: 12px">
+            —
+          </div>
+          <div class="stat-tile-sub" id="stat-top-ip-count">—</div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div
+          class="stat-tile-icon"
+          style="
+            background: rgba(199, 120, 240, 0.1);
+            border-color: rgba(199, 120, 240, 0.15);
+          "
+        >
+          <i data-lucide="globe" size="16" style="color: var(--magenta)"></i>
+        </div>
+        <div class="stat-tile-body">
+          <div class="stat-tile-label">Top Target Domain</div>
+          <div
+            class="stat-tile-val"
+            id="stat-top-domain"
+            style="font-size: 12px"
+          >
+            —
+          </div>
+          <div class="stat-tile-sub" id="stat-top-domain-count">—</div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div
+          class="stat-tile-icon"
+          style="
+            background: rgba(245, 166, 35, 0.1);
+            border-color: rgba(245, 166, 35, 0.15);
+          "
+        >
+          <i data-lucide="zap" size="16" style="color: var(--warning)"></i>
+        </div>
+        <div class="stat-tile-body">
+          <div class="stat-tile-label">Total Traffic</div>
+          <div class="stat-tile-val">
+            <span id="stat-total-traffic">0</span>
+            <span
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--text-muted);
+              "
+              >packets</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MAIN LAYOUT ═══════════ -->
     <div class="app-container">
-        <div class="main-panel">
-            <div class="toolbar">
-                <div class="filters-group">
-                    <button class="filter-btn active" onclick="setFilter('all')">ALL</button>
-                    <button class="filter-btn" onclick="setFilter('tcp')">TCP</button>
-                    <button class="filter-btn" onclick="setFilter('udp')">UDP</button>
-                    <button class="filter-btn" onclick="setFilter('icmp')">ICMP</button>
-                    <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
-                    <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
-                    <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
-                </div>
-                <div class="search-container">
-                    <i data-lucide="search" class="search-icon" size="16"></i>
-                    <input type="text" id="search-input" class="search-input" placeholder="Search IP, Domain, Port..." oninput="handleSearch()">
-                </div>
+      <!-- LEFT: PACKET TABLE -->
+      <div class="main-panel">
+        <div class="toolbar">
+          <div class="filters-group">
+            <button class="filter-btn active" onclick="setFilter('all')">
+              ALL
+            </button>
+            <button class="filter-btn" onclick="setFilter('tcp')">TCP</button>
+            <button class="filter-btn" onclick="setFilter('udp')">UDP</button>
+            <button class="filter-btn" onclick="setFilter('icmp')">ICMP</button>
+            <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
+            <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
+            <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
+          </div>
+          <div class="toolbar-right">
+            <div class="search-container">
+              <i data-lucide="search" class="search-icon" size="14"></i>
+              <input
+                type="text"
+                id="search-input"
+                class="search-input"
+                placeholder="Search IP, Domain, Port..."
+                oninput="handleSearch()"
+              />
             </div>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">Time</th>
-                            <th style="width: 80px;">Protocol</th>
-                            <th style="width: 180px;">Source</th>
-                            <th style="width: 180px;">Destination</th>
-                            <th>Info / Domain</th>
-                            <th style="width: 80px;">Size</th>
-                        </tr>
-                    </thead>
-                    <tbody id="packet-list">
-                        <!-- Packets will dynamically insert here -->
-                    </tbody>
-                </table>
-            </div>
+            <button class="icon-btn" title="Filter options">
+              <i data-lucide="sliders-horizontal" size="14"></i>
+            </button>
+          </div>
         </div>
 
-        <div class="sidebar">
-            <div class="sidebar-section">
-                <div class="section-title">
-                    <i data-lucide="activity" size="14"></i>
-                    <span>Real-time Metrics</span>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div id="stat-total" class="stat-val">0</div>
-                        <div class="stat-label">Packets Captured</div>
-                    </div>
-                    <div class="stat-card">
-                        <div id="stat-rate" class="stat-val">0/s</div>
-                        <div class="stat-label">Packet Rate</div>
-                    </div>
-                </div>
-                <div class="chart-container" id="volume-chart">
-                    <!-- Dynamic chart bars will insert here -->
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="section-title">
-                    <i data-lucide="trending-up" size="14"></i>
-                    <span>Top Target Domains / IPs</span>
-                </div>
-                <div class="stats-list" id="top-targets">
-                    <div class="placeholder-text">Waiting for data...</div>
-                </div>
-            </div>
-
-            <div class="sidebar-section" style="flex: 1; border-bottom: none;">
-                <div class="section-title">
-                    <i data-lucide="terminal" size="14"></i>
-                    <span>Packet Inspection</span>
-                </div>
-                <div id="detail-panel" class="packet-details">
-                    <div class="placeholder-text">Click a packet from the list to analyze raw hex/ASCII payload.</div>
-                </div>
-            </div>
+        <div class="table-container">
+          <table>
+            <colgroup>
+              <col style="width: 110px" />
+              <col style="width: 76px" />
+              <col style="width: 200px" />
+              <col style="width: 200px" />
+              <col />
+              <col style="width: 70px" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Proto</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Info / Domain</th>
+                <th>Size</th>
+              </tr>
+            </thead>
+            <tbody id="packet-list"></tbody>
+          </table>
         </div>
+
+        <div class="table-footer">
+          <div class="live-dot"></div>
+          <span id="footer-text">Waiting for packets...</span>
+        </div>
+      </div>
+
+      <!-- RIGHT: SIDEBAR -->
+      <div class="sidebar">
+        <!-- Metrics -->
+        <div class="sidebar-section">
+          <div class="section-title">
+            <i data-lucide="bar-chart-2" size="12"></i>
+            Real-time Metrics
+          </div>
+          <div class="metrics-grid">
+            <div class="metric-cell">
+              <div class="metric-val" id="stat-total">0</div>
+              <div class="metric-label">Packets Captured</div>
+            </div>
+            <div class="metric-cell">
+              <div class="metric-val" id="stat-rate">0/s</div>
+              <div class="metric-label">Packet Rate</div>
+            </div>
+          </div>
+          <div class="mini-chart" id="volume-chart"></div>
+        </div>
+
+        <!-- Top Targets -->
+        <div class="sidebar-section">
+          <div class="section-title">
+            <i data-lucide="trending-up" size="12"></i>
+            Top Target Domains / IPs
+          </div>
+          <div class="targets-list" id="top-targets">
+            <div class="placeholder-text">Waiting for data...</div>
+          </div>
+        </div>
+
+        <!-- Packet Inspection -->
+        <div class="sidebar-section grow">
+          <div class="section-title">
+            <i data-lucide="code-2" size="12"></i>
+            Packet Inspection
+          </div>
+          <div id="detail-panel" class="inspection-content">
+            <div class="placeholder-text">
+              Click a packet from the list to analyze raw hex/ASCII payload.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        // Global State
-        const packets = [];
-        let activeFilter = 'all';
-        let searchQuery = '';
-        let selectedPacketIndex = null;
-        let eventSource = null;
-        
-        // Stats trackers & Batched Rendering Queue
-        const packetQueue = [];
-        let totalCount = 0;
-        let packetsThisSecond = 0;
-        const rateHistory = Array(20).fill(0); // 20 data points for the bar chart
-        const domainCounts = {};
+      // ─── Global State ───
+      const packets = [];
+      let activeFilter = "all";
+      let searchQuery = "";
+      let selectedPacketIndex = null;
+      const packetQueue = [];
+      let totalCount = 0;
+      let packetsThisSecond = 0;
+      const rateHistory = Array(20).fill(0);
+      const domainCounts = {};
+      const ipCounts = {};
 
-        // DOM Elements
-        const packetList = document.getElementById('packet-list');
-        const detailPanel = document.getElementById('detail-panel');
-        const statusBadge = document.getElementById('connection-status');
-        const statusText = document.getElementById('status-text');
-        
-        // Initial setup
-        lucide.createIcons();
-        initChart();
+      const packetList = document.getElementById("packet-list");
+      const detailPanel = document.getElementById("detail-panel");
+      const statusBadge = document.getElementById("connection-status");
+      const statusText = document.getElementById("status-text");
 
-        // Connect to WebSocket
-        function connectWS() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
-            
-            socket.onopen = () => {
-                statusBadge.classList.remove('disconnected');
-                statusText.innerText = 'LIVE MONITORING ACTIVE';
-            };
+      lucide.createIcons();
+      initChart();
 
-            socket.onclose = () => {
-                statusBadge.classList.add('disconnected');
-                statusText.innerText = 'CONNECTION CLOSED';
-                // Try to reconnect after 2 seconds
-                setTimeout(connectWS, 2000);
-            };
+      // ─── WebSocket ───
+      function connectWS() {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
-            socket.onerror = (e) => {
-                statusBadge.classList.add('disconnected');
-                statusText.innerText = 'CONNECTION ERROR';
-            };
+        socket.onopen = () => {
+          statusBadge.classList.remove("disconnected");
+          statusText.innerText = "LIVE MONITORING ACTIVE";
+        };
 
-            socket.onmessage = (event) => {
-                const packet = JSON.parse(event.data);
-                handleNewPacket(packet);
-            };
-        }
+        socket.onclose = () => {
+          statusBadge.classList.add("disconnected");
+          statusText.innerText = "CONNECTION CLOSED";
+          setTimeout(connectWS, 2000);
+        };
 
-        function handleNewPacket(packet) {
-            totalCount++;
-            packetsThisSecond++;
+        socket.onerror = () => {
+          statusBadge.classList.add("disconnected");
+          statusText.innerText = "CONNECTION ERROR";
+        };
 
-            // Track target domain/IP counters
-            const key = packet.info && packet.info !== '-' && packet.info !== '[ENCRYPTED]' && packet.info !== '[HTTP]'
-                ? packet.info 
-                : packet.dst;
-            
-            domainCounts[key] = (domainCounts[key] || 0) + 1;
-            packetQueue.push(packet);
-        }
+        socket.onmessage = (event) => {
+          const packet = JSON.parse(event.data);
+          handleNewPacket(packet);
+        };
+      }
 
-        // Periodic batch rendering loop (runs at 10Hz/100ms) to ensure smooth UI under high packet throughput
-        setInterval(() => {
-            if (packetQueue.length === 0) return;
+      function handleNewPacket(packet) {
+        totalCount++;
+        packetsThisSecond++;
 
-            document.getElementById('stat-total').innerText = totalCount.toLocaleString();
+        const key =
+          packet.info &&
+          packet.info !== "-" &&
+          packet.info !== "[ENCRYPTED]" &&
+          packet.info !== "[HTTP]"
+            ? packet.info
+            : packet.dst;
+        domainCounts[key] = (domainCounts[key] || 0) + 1;
+        ipCounts[packet.dst] = (ipCounts[packet.dst] || 0) + 1;
+        packetQueue.push(packet);
+      }
 
-            const batch = packetQueue.splice(0, packetQueue.length);
-            for (const packet of batch) {
-                packets.push(packet);
-            }
+      // ─── Batch render at 10Hz ───
+      setInterval(() => {
+        if (packetQueue.length === 0) return;
 
-            if (packets.length > 500) {
-                packets.splice(0, packets.length - 500);
-            }
+        document.getElementById("stat-total").innerText =
+          totalCount.toLocaleString();
+        document.getElementById("stat-total-traffic").innerText =
+          totalCount.toLocaleString();
 
-            const fragment = document.createDocumentFragment();
-            
-            batch.forEach((packet) => {
-                if (!matchesFilter(packet) || !matchesSearch(packet)) return;
+        const batch = packetQueue.splice(0, packetQueue.length);
+        for (const p of batch) packets.push(p);
+        if (packets.length > 500) packets.splice(0, packets.length - 500);
 
-                const tr = document.createElement('tr');
-                const index = packets.indexOf(packet);
-                tr.id = `packet-row-${index}`;
-                if (selectedPacketIndex === index) {
-                    tr.classList.add('selected');
-                }
-                tr.onclick = () => selectPacket(index);
+        const frag = document.createDocumentFragment();
+        batch.forEach((packet) => {
+          if (!matchesFilter(packet) || !matchesSearch(packet)) return;
+          const tr = document.createElement("tr");
+          const index = packets.indexOf(packet);
+          tr.id = `packet-row-${index}`;
+          if (selectedPacketIndex === index) tr.classList.add("selected");
+          tr.onclick = () => selectPacket(index);
 
-                const protoLower = packet.proto.toLowerCase();
-                const badgeClass = `proto-badge proto-${protoLower}`;
+          const info = packet.info || "-";
+          let infoColor = "var(--text-main)";
+          if (packet.proto === "TLS") infoColor = "var(--magenta)";
+          else if (packet.proto === "DNS") infoColor = "var(--warning)";
 
-                tr.innerHTML = `
-                    <td style="color: var(--text-muted);">${packet.timestamp}</td>
-                    <td><span class="${badgeClass}">${packet.proto}</span></td>
-                    <td title="${packet.src}">${packet.src}</td>
-                    <td title="${packet.dst}">${packet.dst}</td>
-                    <td title="${packet.info || '-'}" style="color: ${packet.proto === 'TLS' ? 'var(--magenta)' : packet.proto === 'DNS' ? 'var(--warning)' : 'var(--text-main)'};">${packet.info || '-'}</td>
-                    <td style="font-weight: 700; color: var(--warning);">${packet.size} B</td>
-                `;
-                fragment.appendChild(tr);
-            });
-
-            packetList.appendChild(fragment);
-
-            // Cap the table DOM size to match packet history cap
-            while (packetList.children.length > 300) {
-                packetList.removeChild(packetList.firstChild);
-            }
-
-            // Scroll container to bottom
-            const container = document.querySelector('.table-container');
-            container.scrollTop = container.scrollHeight;
-
-            updateTopTargets();
-        }, 100);
-
-        function matchesFilter(packet) {
-            if (activeFilter === 'all') return true;
-            return packet.proto.toLowerCase() === activeFilter;
-        }
-
-        function matchesSearch(packet) {
-            if (!searchQuery) return true;
-            const query = searchQuery.toLowerCase();
-            return (
-                packet.src.toLowerCase().includes(query) ||
-                packet.dst.toLowerCase().includes(query) ||
-                packet.proto.toLowerCase().includes(query) ||
-                (packet.info && packet.info.toLowerCase().includes(query))
-            );
-        }
-
-        function selectPacket(index) {
-            // Unselect previous
-            if (selectedPacketIndex !== null) {
-                const prevRow = document.getElementById(`packet-row-${selectedPacketIndex}`);
-                if (prevRow) prevRow.classList.remove('selected');
-            }
-
-            selectedPacketIndex = index;
-            const row = document.getElementById(`packet-row-${index}`);
-            if (row) row.classList.add('selected');
-
-            // Render details
-            const packet = packets[index];
-            if (!packet) return;
-
-            // Generate temporary Hex/ASCII for visual details panel since raw binary isn't sent
-            const hexDump = generateHexASCII(packet);
-
-            detailPanel.innerHTML = `
-                <div>
-                    <div class="details-header">Ethernet & IP Metadata</div>
-                    <div style="margin-top: 10px;">
-                        <div class="details-row"><span class="details-label">Time:</span><span>${packet.timestamp}</span></div>
-                        <div class="details-row"><span class="details-label">Protocol:</span><span class="proto-badge proto-${packet.proto.toLowerCase()}">${packet.proto}</span></div>
-                        <div class="details-row"><span class="details-label">Source IP:</span><span>${packet.src}</span></div>
-                        <div class="details-row"><span class="details-label">Dest IP:</span><span>${packet.dst}</span></div>
-                        <div class="details-row"><span class="details-label">Packet Size:</span><span>${packet.size} bytes</span></div>
-                        <div class="details-row"><span class="details-label">L7 Info:</span><span style="color: var(--primary); font-weight:700;">${packet.info || '-'}</span></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="details-header">Raw Hex / ASCII Payload</div>
-                    <div class="hexdump-area" style="margin-top: 10px;">${hexDump}</div>
-                </div>
+          tr.innerHTML = `
+                <td style="color:var(--text-muted);">${packet.timestamp}</td>
+                <td><span class="proto-badge proto-${packet.proto.toLowerCase()}">${packet.proto}</span></td>
+                <td title="${packet.src}">${packet.src}</td>
+                <td title="${packet.dst}">${packet.dst}</td>
+                <td title="${info}" style="color:${infoColor};">${info}</td>
+                <td style="color:var(--warning); font-weight:700;">${packet.size} B</td>
             `;
-        }
-
-        function generateHexASCII(packet) {
-            // Emulate a standard IP hexdump block based on packet fields to display beautifully
-            let dump = "";
-            let offset = 0;
-            // Synthesize packet bytes
-            const bytes = [];
-            
-            // Add fake ethernet header
-            bytes.push(0x00, 0x0c, 0x29, 0x3e, 0x05, 0x18, 0x00, 0x50, 0x56, 0xc0, 0x00, 0x08);
-            
-            // EtherType
-            if (packet.proto === 'ARP') {
-                bytes.push(0x08, 0x06);
-            } else {
-                bytes.push(0x08, 0x00);
-            }
-
-            // Fill remainder with pseudo data based on info
-            const infoStr = packet.info && packet.info !== '-' ? packet.info : `${packet.src} -> ${packet.dst}`;
-            for (let i = 0; i < Math.min(packet.size - 14, 128); i++) {
-                if (i < infoStr.length) {
-                    bytes.push(infoStr.charCodeAt(i));
-                } else {
-                    bytes.push(Math.floor(Math.random() * 256));
-                }
-            }
-
-            for (let i = 0; i < bytes.length; i += 16) {
-                const chunk = bytes.slice(i, i + 16);
-                dump += `  ${offset.toString(16).padStart(4, '0')}  `;
-                for (let j = 0; j < 16; j++) {
-                    if (j === 8) dump += " ";
-                    if (j < chunk.length) {
-                        dump += chunk[j].toString(16).padStart(2, '0') + " ";
-                    } else {
-                        dump += "   ";
-                    }
-                }
-                dump += "  ";
-                for (let j = 0; j < chunk.length; j++) {
-                    const char = String.fromCharCode(chunk[j]);
-                    const isGraphic = chunk[j] >= 32 && chunk[j] <= 126;
-                    dump += isGraphic ? char : ".";
-                }
-                dump += "\n";
-                offset += 16;
-            }
-            return dump;
-        }
-
-        // Toolbar actions
-        function setFilter(filter) {
-            activeFilter = filter;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                if (btn.innerText.toLowerCase() === filter) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            refreshList();
-        }
-
-        // Search action
-        function handleSearch() {
-            searchQuery = document.getElementById('search-input').value;
-            refreshList();
-        }
-
-        function refreshList() {
-            packetList.innerHTML = '';
-            packets.forEach((pkt, idx) => {
-                renderPacketLine(pkt, idx);
-            });
-        }
-
-        // Side metrics charts
-        function initChart() {
-            const chart = document.getElementById('volume-chart');
-            chart.innerHTML = '';
-            for (let i = 0; i < 20; i++) {
-                const barWrapper = document.createElement('div');
-                barWrapper.className = 'chart-bar-wrapper';
-                barWrapper.innerHTML = `<div class="chart-bar" style="height: 0px;"></div>`;
-                chart.appendChild(barWrapper);
-            }
-
-            // Start update interval
-            setInterval(() => {
-                // Update packet rate display
-                document.getElementById('stat-rate').innerText = `${packetsThisSecond}/s`;
-                
-                // Add to history
-                rateHistory.shift();
-                rateHistory.push(packetsThisSecond);
-                packetsThisSecond = 0;
-
-                // Update chart DOM
-                const maxRate = Math.max(...rateHistory, 1);
-                const bars = chart.querySelectorAll('.chart-bar');
-                rateHistory.forEach((rate, idx) => {
-                    const percent = (rate / maxRate) * 100;
-                    bars[idx].style.height = `${percent}%`;
-                });
-            }, 1000);
-        }
-
-        function updateTopTargets() {
-            const container = document.getElementById('top-targets');
-            const sorted = Object.entries(domainCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
-
-            if (sorted.length === 0) return;
-
-            container.innerHTML = sorted.map(([key, count]) => `
-                <div class="stats-item">
-                    <span class="stats-item-key" title="${key}">${key}</span>
-                    <span class="stats-item-val">${count} pkts</span>
-                </div>
-            `).join('');
-        }
-
-        // Connect WS after page is fully loaded to prevent infinite browser loading spinner
-        window.addEventListener('load', () => {
-            setTimeout(connectWS, 100);
+          frag.appendChild(tr);
         });
+
+        packetList.appendChild(frag);
+        while (packetList.children.length > 300)
+          packetList.removeChild(packetList.firstChild);
+
+        const container = document.querySelector(".table-container");
+        container.scrollTop = container.scrollHeight;
+
+        document.getElementById("footer-text").innerText =
+          `LIVE · Showing ${Math.min(packetList.children.length, totalCount)} of ${totalCount} entries`;
+        updateTopTargets();
+        updateStatTiles();
+      }, 100);
+
+      // ─── Stats Tiles ───
+      function updateStatTiles() {
+        const topIP = Object.entries(ipCounts).sort((a, b) => b[1] - a[1])[0];
+        const topDomain = Object.entries(domainCounts).sort(
+          (a, b) => b[1] - a[1],
+        )[0];
+        if (topIP) {
+          document.getElementById("stat-top-ip").textContent =
+            topIP[0].length > 18 ? topIP[0].slice(0, 18) + "…" : topIP[0];
+          document.getElementById("stat-top-ip-count").textContent =
+            topIP[1].toLocaleString() + " pkts";
+        }
+        if (topDomain) {
+          document.getElementById("stat-top-domain").textContent =
+            topDomain[0].length > 18
+              ? topDomain[0].slice(0, 18) + "…"
+              : topDomain[0];
+          document.getElementById("stat-top-domain-count").textContent =
+            topDomain[1].toLocaleString() + " pkts";
+        }
+      }
+
+      function matchesFilter(p) {
+        return activeFilter === "all" || p.proto.toLowerCase() === activeFilter;
+      }
+      function matchesSearch(p) {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          p.src.toLowerCase().includes(q) ||
+          p.dst.toLowerCase().includes(q) ||
+          p.proto.toLowerCase().includes(q) ||
+          (p.info && p.info.toLowerCase().includes(q))
+        );
+      }
+
+      function selectPacket(index) {
+        if (selectedPacketIndex !== null) {
+          const prev = document.getElementById(
+            `packet-row-${selectedPacketIndex}`,
+          );
+          if (prev) prev.classList.remove("selected");
+        }
+        selectedPacketIndex = index;
+        const row = document.getElementById(`packet-row-${index}`);
+        if (row) row.classList.add("selected");
+
+        const packet = packets[index];
+        if (!packet) return;
+        const hexDump = generateHexASCII(packet);
+
+        detailPanel.innerHTML = `
+            <div class="insp-section-label">Ethernet &amp; IP Metadata</div>
+            <div style="margin-bottom:14px;">
+                <div class="insp-row"><span class="insp-key">Time:</span><span>${packet.timestamp}</span></div>
+                <div class="insp-row"><span class="insp-key">Protocol:</span><span class="proto-badge proto-${packet.proto.toLowerCase()}">${packet.proto}</span></div>
+                <div class="insp-row"><span class="insp-key">Source IP:</span><span>${packet.src}</span></div>
+                <div class="insp-row"><span class="insp-key">Dest IP:</span><span>${packet.dst}</span></div>
+                <div class="insp-row"><span class="insp-key">Pkt Size:</span><span>${packet.size} bytes</span></div>
+                <div class="insp-row"><span class="insp-key">L7 Info:</span><span style="color:var(--primary);font-weight:700;">${packet.info || "-"}</span></div>
+            </div>
+            <div class="insp-section-label">Raw Hex / ASCII Payload</div>
+            <div class="hexdump-area">${hexDump}</div>
+        `;
+      }
+
+      function generateHexASCII(packet) {
+        const bytes = [
+          0x00, 0x0c, 0x29, 0x3e, 0x05, 0x18, 0x00, 0x50, 0x56, 0xc0, 0x00,
+          0x08,
+        ];
+        bytes.push(
+          packet.proto === "ARP" ? 0x08 : 0x08,
+          packet.proto === "ARP" ? 0x06 : 0x00,
+        );
+        const infoStr =
+          packet.info && packet.info !== "-"
+            ? packet.info
+            : `${packet.src} -> ${packet.dst}`;
+        for (let i = 0; i < Math.min(packet.size - 14, 128); i++) {
+          bytes.push(
+            i < infoStr.length
+              ? infoStr.charCodeAt(i)
+              : Math.floor(Math.random() * 256),
+          );
+        }
+        let dump = "",
+          offset = 0;
+        for (let i = 0; i < bytes.length; i += 16) {
+          const chunk = bytes.slice(i, i + 16);
+          dump += `  ${offset.toString(16).padStart(4, "0")}  `;
+          for (let j = 0; j < 16; j++) {
+            if (j === 8) dump += " ";
+            dump +=
+              j < chunk.length
+                ? chunk[j].toString(16).padStart(2, "0") + " "
+                : "   ";
+          }
+          dump += "  ";
+          for (const b of chunk)
+            dump += b >= 32 && b <= 126 ? String.fromCharCode(b) : ".";
+          dump += "\n";
+          offset += 16;
+        }
+        return dump;
+      }
+
+      function setFilter(filter) {
+        activeFilter = filter;
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.toggle(
+            "active",
+            btn.innerText.toLowerCase() === filter,
+          );
+        });
+        refreshList();
+      }
+
+      function handleSearch() {
+        searchQuery = document.getElementById("search-input").value;
+        refreshList();
+      }
+
+      function refreshList() {
+        packetList.innerHTML = "";
+        packets.forEach((pkt, idx) => {
+          if (!matchesFilter(pkt) || !matchesSearch(pkt)) return;
+          const tr = document.createElement("tr");
+          tr.id = `packet-row-${idx}`;
+          if (selectedPacketIndex === idx) tr.classList.add("selected");
+          tr.onclick = () => selectPacket(idx);
+          const info = pkt.info || "-";
+          let infoColor = "var(--text-main)";
+          if (pkt.proto === "TLS") infoColor = "var(--magenta)";
+          else if (pkt.proto === "DNS") infoColor = "var(--warning)";
+          tr.innerHTML = `
+                <td style="color:var(--text-muted);">${pkt.timestamp}</td>
+                <td><span class="proto-badge proto-${pkt.proto.toLowerCase()}">${pkt.proto}</span></td>
+                <td title="${pkt.src}">${pkt.src}</td>
+                <td title="${pkt.dst}">${pkt.dst}</td>
+                <td title="${info}" style="color:${infoColor};">${info}</td>
+                <td style="color:var(--warning); font-weight:700;">${pkt.size} B</td>
+            `;
+          packetList.appendChild(tr);
+        });
+      }
+
+      function initChart() {
+        const chart = document.getElementById("volume-chart");
+        chart.innerHTML = "";
+        for (let i = 0; i < 20; i++) {
+          const w = document.createElement("div");
+          w.className = "mini-bar-wrap";
+          w.innerHTML = '<div class="mini-bar" style="height:0"></div>';
+          chart.appendChild(w);
+        }
+        setInterval(() => {
+          document.getElementById("stat-rate").innerText =
+            `${packetsThisSecond}/s`;
+          document.getElementById("stat-pps").innerHTML =
+            `${packetsThisSecond} <span style="font-size:12px;font-weight:400;color:var(--text-muted)">pkt/s</span>`;
+          rateHistory.shift();
+          rateHistory.push(packetsThisSecond);
+          packetsThisSecond = 0;
+          const maxRate = Math.max(...rateHistory, 1);
+          chart.querySelectorAll(".mini-bar").forEach((bar, idx) => {
+            bar.style.height = `${(rateHistory[idx] / maxRate) * 100}%`;
+          });
+        }, 1000);
+      }
+
+      function updateTopTargets() {
+        const container = document.getElementById("top-targets");
+        const sorted = Object.entries(domainCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+        if (!sorted.length) return;
+        const max = sorted[0][1];
+        container.innerHTML = sorted
+          .map(
+            ([key, count]) => `
+            <div class="target-item">
+                <span class="target-key" title="${key}">${key}</span>
+                <div class="target-bar-wrap"><div class="target-bar" style="width:${Math.round((count / max) * 100)}%"></div></div>
+                <span class="target-val">${count} pkts</span>
+            </div>
+        `,
+          )
+          .join("");
+      }
+
+      window.addEventListener("load", () => setTimeout(connectWS, 100));
     </script>
-</body>
+  </body>
 </html>

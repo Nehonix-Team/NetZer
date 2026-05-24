@@ -26,7 +26,18 @@ NetZer is organized as a modular Cargo workspace consisting of three primary cra
 
 1. **`netzer-core`**: Responsible for protocol parsers, TCP reassembly, and TLS SNI extraction. It processes byte slices and returns decoded structures with zero heap allocation.
 2. **`netzer-socket`**: Manages the `AF_PACKET` socket lifecycle, `TPACKET_V3` ring buffer setup, BPF filter injection, and the privilege dropping sequence.
-3. **`netzer-cli`**: Handles the command-line interface, argument parsing, terminal formatting, and file export functionalities.
+3. **`netzer-cli`**: Handles the command-line interface, argument parsing, terminal formatting, file export functionalities, and the embedded OSINT web dashboard server.
+
+## OSINT Web Dashboard
+
+NetZer embeds a real-time OSINT monitoring dashboard accessible directly from the browser. Start it with:
+
+```bash
+sudo ./netzer-cli --interface wlan0 --serve --port 7070
+# Then open http://127.0.0.1:7070
+```
+
+![NetZer OSINT Dashboard](assets/image.png)
 
 ## License
 
