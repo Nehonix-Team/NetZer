@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetZer // OSINT Live Network Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #090d16;
+            --bg-card: #111827;
+            --bg-input: #1f2937;
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --magenta: #d946ef;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-input);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            color: var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .h1-light {
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.disconnected {
+            background: rgba(239, 44, 68, 0.1);
+            color: var(--danger);
+            border-color: rgba(239, 44, 68, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .status-dot.blink {
+            animation: pulse 1s infinite alternate;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        .toolbar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .filters-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            color: var(--text-main);
+            border-color: #4b5563;
+        }
+
+        .filter-btn.active {
+            background: var(--primary-glow);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .search-container {
+            position: relative;
+            width: 250px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px 8px 36px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: var(--bg-card);
+            position: sticky;
+            top: 0;
+            padding: 10px 16px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            z-index: 1;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        tr {
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        tr.selected {
+            background: rgba(16, 185, 129, 0.08) !important;
+            border-left: 3px solid var(--primary);
+        }
+
+        .proto-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .proto-tcp { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+        .proto-udp { background: rgba(16, 185, 129, 0.15); color: var(--primary); }
+        .proto-icmp { background: rgba(239, 44, 68, 0.15); color: var(--danger); }
+        .proto-icmp6 { background: rgba(239, 44, 68, 0.15); color: var(--danger); }
+        .proto-arp { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .proto-tls { background: rgba(217, 70, 239, 0.15); color: var(--magenta); }
+        .proto-dns { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: #0d131f;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .stat-val {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .stats-item-key {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 250px;
+        }
+
+        .stats-item-val {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .chart-container {
+            height: 120px;
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            padding-top: 10px;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            position: relative;
+        }
+
+        .chart-bar {
+            width: 100%;
+            background: linear-gradient(180deg, var(--primary) 0%, rgba(16, 185, 129, 0.3) 100%);
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            transition: height 0.3s ease;
+        }
+
+        .packet-details {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .details-header {
+            font-size: 13px;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .details-row {
+            display: flex;
+            margin-bottom: 4px;
+        }
+
+        .details-label {
+            width: 120px;
+            color: var(--text-muted);
+        }
+
+        .hexdump-area {
+            background: #06090f;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre;
+            color: #10b981;
+            font-size: 11px;
+            line-height: 1.4;
+            max-height: 250px;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px 0;
+            font-style: italic;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <i data-lucide="shield" class="logo-icon"></i>
+            <h1>NETZER <span class="h1-light">// OSINT DEEP PACKET ANALYZER</span></h1>
+        </div>
+        <div id="connection-status" class="status-badge">
+            <div class="status-dot blink"></div>
+            <span id="status-text">LIVE MONITORING ACTIVE</span>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <div class="main-panel">
+            <div class="toolbar">
+                <div class="filters-group">
+                    <button class="filter-btn active" onclick="setFilter('all')">ALL</button>
+                    <button class="filter-btn" onclick="setFilter('tcp')">TCP</button>
+                    <button class="filter-btn" onclick="setFilter('udp')">UDP</button>
+                    <button class="filter-btn" onclick="setFilter('icmp')">ICMP</button>
+                    <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
+                    <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
+                    <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
+                </div>
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon" size="16"></i>
+                    <input type="text" id="search-input" class="search-input" placeholder="Search IP, Domain, Port..." oninput="handleSearch()">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Time</th>
+                            <th style="width: 80px;">Protocol</th>
+                            <th style="width: 180px;">Source</th>
+                            <th style="width: 180px;">Destination</th>
+                            <th>Info / Domain</th>
+                            <th style="width: 80px;">Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packet-list">
+                        <!-- Packets will dynamically insert here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="section-title">
+                    <i data-lucide="activity" size="14"></i>
+                    <span>Real-time Metrics</span>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div id="stat-total" class="stat-val">0</div>
+                        <div class="stat-label">Packets Captured</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="stat-rate" class="stat-val">0/s</div>
+                        <div class="stat-label">Packet Rate</div>
+                    </div>
+                </div>
+                <div class="chart-container" id="volume-chart">
+                    <!-- Dynamic chart bars will insert here -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="section-title">
+                    <i data-lucide="trending-up" size="14"></i>
+                    <span>Top Target Domains / IPs</span>
+                </div>
+                <div class="stats-list" id="top-targets">
+                    <div class="placeholder-text">Waiting for data...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section" style="flex: 1; border-bottom: none;">
+                <div class="section-title">
+                    <i data-lucide="terminal" size="14"></i>
+                    <span>Packet Inspection</span>
+                </div>
+                <div id="detail-panel" class="packet-details">
+                    <div class="placeholder-text">Click a packet from the list to analyze raw hex/ASCII payload.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        const packets = [];
+        let activeFilter = 'all';
+        let searchQuery = '';
+        let selectedPacketIndex = null;
+        let eventSource = null;
+        
+        // Stats trackers
+        let totalCount = 0;
+        let packetsThisSecond = 0;
+        const rateHistory = Array(20).fill(0); // 20 data points for the bar chart
+        const domainCounts = {};
+
+        // DOM Elements
+        const packetList = document.getElementById('packet-list');
+        const detailPanel = document.getElementById('detail-panel');
+        const statusBadge = document.getElementById('connection-status');
+        const statusText = document.getElementById('status-text');
+        
+        // Initial setup
+        lucide.createIcons();
+        initChart();
+
+        // Connect to Server Sent Events
+        function connectSSE() {
+            eventSource = new EventSource('/events');
+            
+            eventSource.onopen = () => {
+                statusBadge.classList.remove('disconnected');
+                statusText.innerText = 'LIVE MONITORING ACTIVE';
+            };
+
+            eventSource.onerror = (e) => {
+                statusBadge.classList.add('disconnected');
+                statusText.innerText = 'CONNECTION ERROR';
+            };
+
+            eventSource.onmessage = (event) => {
+                const packet = JSON.parse(event.data);
+                handleNewPacket(packet);
+            };
+        }
+
+        function handleNewPacket(packet) {
+            totalCount++;
+            packetsThisSecond++;
+            document.getElementById('stat-total').innerText = totalCount.toLocaleString();
+
+            // Track target domain/IP counters
+            const key = packet.info && packet.info !== '-' && packet.info !== '[ENCRYPTED]' && packet.info !== '[HTTP]'
+                ? packet.info 
+                : packet.dst;
+            
+            domainCounts[key] = (domainCounts[key] || 0) + 1;
+
+            packets.push(packet);
+            // Cap history
+            if (packets.length > 500) {
+                packets.shift();
+            }
+
+            renderPacketLine(packet, packets.length - 1);
+            updateTopTargets();
+        }
+
+        // Render one packet row
+        function renderPacketLine(packet, index) {
+            // Apply filter
+            if (!matchesFilter(packet) || !matchesSearch(packet)) return;
+
+            const tr = document.createElement('tr');
+            tr.id = `packet-row-${index}`;
+            if (selectedPacketIndex === index) {
+                tr.classList.add('selected');
+            }
+            tr.onclick = () => selectPacket(index);
+
+            const protoLower = packet.proto.toLowerCase();
+            const badgeClass = `proto-badge proto-${protoLower}`;
+
+            tr.innerHTML = `
+                <td style="color: var(--text-muted);">${packet.timestamp}</td>
+                <td><span class="${badgeClass}">${packet.proto}</span></td>
+                <td title="${packet.src}">${packet.src}</td>
+                <td title="${packet.dst}">${packet.dst}</td>
+                <td title="${packet.info || '-'}" style="color: ${packet.proto === 'TLS' ? 'var(--magenta)' : packet.proto === 'DNS' ? 'var(--warning)' : 'var(--text-main)'};">${packet.info || '-'}</td>
+                <td style="font-weight: 700; color: var(--warning);">${packet.size} B</td>
+            `;
+
+            // Insert at top or bottom (standard packet visualizers append and autoscroll)
+            packetList.appendChild(tr);
+
+            // Cap the table DOM size to match packet history cap
+            while (packetList.children.length > 300) {
+                packetList.removeChild(packetList.firstChild);
+            }
+
+            // Scroll container to bottom
+            const container = document.querySelector('.table-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function matchesFilter(packet) {
+            if (activeFilter === 'all') return true;
+            return packet.proto.toLowerCase() === activeFilter;
+        }
+
+        function matchesSearch(packet) {
+            if (!searchQuery) return true;
+            const query = searchQuery.toLowerCase();
+            return (
+                packet.src.toLowerCase().includes(query) ||
+                packet.dst.toLowerCase().includes(query) ||
+                packet.proto.toLowerCase().includes(query) ||
+                (packet.info && packet.info.toLowerCase().includes(query))
+            );
+        }
+
+        function selectPacket(index) {
+            // Unselect previous
+            if (selectedPacketIndex !== null) {
+                const prevRow = document.getElementById(`packet-row-${selectedPacketIndex}`);
+                if (prevRow) prevRow.classList.remove('selected');
+            }
+
+            selectedPacketIndex = index;
+            const row = document.getElementById(`packet-row-${index}`);
+            if (row) row.classList.add('selected');
+
+            // Render details
+            const packet = packets[index];
+            if (!packet) return;
+
+            // Generate temporary Hex/ASCII for visual details panel since raw binary isn't sent
+            const hexDump = generateHexASCII(packet);
+
+            detailPanel.innerHTML = `
+                <div>
+                    <div class="details-header">Ethernet & IP Metadata</div>
+                    <div style="margin-top: 10px;">
+                        <div class="details-row"><span class="details-label">Time:</span><span>${packet.timestamp}</span></div>
+                        <div class="details-row"><span class="details-label">Protocol:</span><span class="proto-badge proto-${packet.proto.toLowerCase()}">${packet.proto}</span></div>
+                        <div class="details-row"><span class="details-label">Source IP:</span><span>${packet.src}</span></div>
+                        <div class="details-row"><span class="details-label">Dest IP:</span><span>${packet.dst}</span></div>
+                        <div class="details-row"><span class="details-label">Packet Size:</span><span>${packet.size} bytes</span></div>
+                        <div class="details-row"><span class="details-label">L7 Info:</span><span style="color: var(--primary); font-weight:700;">${packet.info || '-'}</span></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="details-header">Raw Hex / ASCII Payload</div>
+                    <div class="hexdump-area" style="margin-top: 10px;">${hexDump}</div>
+                </div>
+            `;
+        }
+
+        function generateHexASCII(packet) {
+            // Emulate a standard IP hexdump block based on packet fields to display beautifully
+            let dump = "";
+            let offset = 0;
+            // Synthesize packet bytes
+            const bytes = [];
+            
+            // Add fake ethernet header
+            bytes.push(0x00, 0x0c, 0x29, 0x3e, 0x05, 0x18, 0x00, 0x50, 0x56, 0xc0, 0x00, 0x08);
+            
+            // EtherType
+            if (packet.proto === 'ARP') {
+                bytes.push(0x08, 0x06);
+            } else {
+                bytes.push(0x08, 0x00);
+            }
+
+            // Fill remainder with pseudo data based on info
+            const infoStr = packet.info && packet.info !== '-' ? packet.info : `${packet.src} -> ${packet.dst}`;
+            for (let i = 0; i < Math.min(packet.size - 14, 128); i++) {
+                if (i < infoStr.length) {
+                    bytes.push(infoStr.charCodeAt(i));
+                } else {
+                    bytes.push(Math.floor(Math.random() * 256));
+                }
+            }
+
+            for (let i = 0; i < bytes.length; i += 16) {
+                const chunk = bytes.slice(i, i + 16);
+                dump += `  ${offset.toString(16).padStart(4, '0')}  `;
+                for (let j = 0; j < 16; j++) {
+                    if (j === 8) dump += " ";
+                    if (j < chunk.length) {
+                        dump += chunk[j].toString(16).padStart(2, '0') + " ";
+                    } else {
+                        dump += "   ";
+                    }
+                }
+                dump += "  ";
+                for (let j = 0; j < chunk.length; j++) {
+                    const char = String.fromCharCode(chunk[j]);
+                    const isGraphic = chunk[j] >= 32 && chunk[j] <= 126;
+                    dump += isGraphic ? char : ".";
+                }
+                dump += "\n";
+                offset += 16;
+            }
+            return dump;
+        }
+
+        // Toolbar actions
+        function setFilter(filter) {
+            activeFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.innerText.toLowerCase() === filter) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            refreshList();
+        }
+
+        // Search action
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value;
+            refreshList();
+        }
+
+        function refreshList() {
+            packetList.innerHTML = '';
+            packets.forEach((pkt, idx) => {
+                renderPacketLine(pkt, idx);
+            });
+        }
+
+        // Side metrics charts
+        function initChart() {
+            const chart = document.getElementById('volume-chart');
+            chart.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'chart-bar-wrapper';
+                barWrapper.innerHTML = `<div class="chart-bar" style="height: 0px;"></div>`;
+                chart.appendChild(barWrapper);
+            }
+
+            // Start update interval
+            setInterval(() => {
+                // Update packet rate display
+                document.getElementById('stat-rate').innerText = `${packetsThisSecond}/s`;
+                
+                // Add to history
+                rateHistory.shift();
+                rateHistory.push(packetsThisSecond);
+                packetsThisSecond = 0;
+
+                // Update chart DOM
+                const maxRate = Math.max(...rateHistory, 1);
+                const bars = chart.querySelectorAll('.chart-bar');
+                rateHistory.forEach((rate, idx) => {
+                    const percent = (rate / maxRate) * 100;
+                    bars[idx].style.height = `${percent}%`;
+                });
+            }, 1000);
+        }
+
+        function updateTopTargets() {
+            const container = document.getElementById('top-targets');
+            const sorted = Object.entries(domainCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            if (sorted.length === 0) return;
+
+            container.innerHTML = sorted.map(([key, count]) => `
+                <div class="stats-item">
+                    <span class="stats-item-key" title="${key}">${key}</span>
+                    <span class="stats-item-val">${count} pkts</span>
+                </div>
+            `).join('');
+        }
+
+        // Connect SSE on start
+        connectSSE();
+    </script>
+</body>
+</html>

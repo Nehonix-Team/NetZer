@@ -1,4 +1,6 @@
 #![allow(unused_assignments)]
+pub mod web;
+
 use clap::Parser;
 use netzer_core::ethernet::{EthernetFrame, EtherType};
 use netzer_core::hexdump::hexdump;
@@ -12,6 +14,7 @@ use netzer_core::dns::DnsQuery;
 use netzer_core::tls::TlsClientHello;
 use netzer_core::tcp_stream::TcpStreamTracker;
 use netzer_socket::socket::{RawSocket, RingSocket};
+use web::WebServer;
 use std::process;
 use std::fs::File;
 use std::io::Write;
@@ -53,6 +56,14 @@ struct Args {
     /// Use TPACKET_V3 ring buffer (mmap) instead of recv() for high-throughput capture
     #[arg(long, default_value_t = false)]
     ring_buffer: bool,
+
+    /// Start the Web OSINT local server for live packet monitoring
+    #[arg(long, default_value_t = false)]
+    serve: bool,
+
+    /// Port for the Web OSINT server
+    #[arg(long, default_value_t = 7070)]
+    port: u16,
 }
 
 struct PcapWriter {
@@ -116,7 +127,12 @@ impl JsonWriter {
     ) -> std::io::Result<()> {
         let line = format!(
             "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}\n",
-            time_str, proto, src, dst, info, size
+            escape_json(time_str),
+            escape_json(proto),
+            escape_json(src),
+            escape_json(dst),
+            escape_json(info),
+            size
         );
         self.file.write_all(line.as_bytes())?;
         Ok(())
@@ -154,6 +170,10 @@ fn truncate(s: &str, max_chars: usize) -> String {
         None => s.to_string(),
         Some((idx, _)) => format!("{}...", &s[..idx - 3]),
     }
+}
+
+fn escape_json(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn print_packet_line(
