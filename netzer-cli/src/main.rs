@@ -195,6 +195,15 @@ fn print_packet_line(
     );
 }
 
+fn to_hex_string(bytes: &[u8]) -> String {
+    let limit = std::cmp::min(bytes.len(), 256);
+    let mut s = String::with_capacity(limit * 2);
+    for &b in &bytes[..limit] {
+        s.push_str(&format!("{:02x}", b));
+    }
+    s
+}
+
 fn handle_tcp(
     src_ip: &str,
     dst_ip: &str,
@@ -203,6 +212,7 @@ fn handle_tcp(
     size: usize,
     json_writer: &mut Option<JsonWriter>,
     web_server: &Option<WebServer>,
+    raw_hex: &str,
 ) {
     let (tcp_header, tcp_payload) = match TcpHeader::parse(payload) {
         Ok(res) => res,
@@ -254,13 +264,14 @@ fn handle_tcp(
     if let Some(server) = web_server {
         let proto_name = if is_tls { "TLS" } else { "TCP" };
         let msg = format!(
-            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
             escape_json(proto_name),
             escape_json(&src),
             escape_json(&dst),
             escape_json(info_raw),
-            size
+            size,
+            raw_hex
         );
         server.broadcast(&msg);
     }
@@ -274,6 +285,7 @@ fn handle_udp(
     size: usize,
     json_writer: &mut Option<JsonWriter>,
     web_server: &Option<WebServer>,
+    raw_hex: &str,
 ) {
     let (udp_header, udp_payload) = match UdpHeader::parse(payload) {
         Ok(res) => res,
@@ -321,13 +333,14 @@ fn handle_udp(
     if let Some(server) = web_server {
         let proto_name = if is_dns { "DNS" } else { "UDP" };
         let msg = format!(
-            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
             escape_json(proto_name),
             escape_json(&src),
             escape_json(&dst),
             escape_json(info_raw),
-            size
+            size,
+            raw_hex
         );
         server.broadcast(&msg);
     }
@@ -341,6 +354,7 @@ fn handle_icmp(
     size: usize,
     json_writer: &mut Option<JsonWriter>,
     web_server: &Option<WebServer>,
+    raw_hex: &str,
 ) {
     let (icmp_header, _) = match IcmpHeader::parse(payload) {
         Ok(res) => res,
@@ -369,12 +383,13 @@ fn handle_icmp(
     // Web OSINT Server Broadcast
     if let Some(server) = web_server {
         let msg = format!(
-            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
             escape_json(src_ip),
             escape_json(dst_ip),
             escape_json(&info_raw),
-            size
+            size,
+            raw_hex
         );
         server.broadcast(&msg);
     }
@@ -388,6 +403,7 @@ fn handle_icmpv6(
     size: usize,
     json_writer: &mut Option<JsonWriter>,
     web_server: &Option<WebServer>,
+    raw_hex: &str,
 ) {
     let (icmp_header, _) = match IcmpHeader::parse(payload) {
         Ok(res) => res,
@@ -421,12 +437,13 @@ fn handle_icmpv6(
     // Web OSINT Server Broadcast
     if let Some(server) = web_server {
         let msg = format!(
-            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP6\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP6\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
             escape_json(src_ip),
             escape_json(dst_ip),
             escape_json(&info_raw),
-            size
+            size,
+            raw_hex
         );
         server.broadcast(&msg);
     }
@@ -438,6 +455,7 @@ fn handle_arp(
     size: usize,
     json_writer: &mut Option<JsonWriter>,
     web_server: &Option<WebServer>,
+    raw_hex: &str,
 ) {
     let arp = match ArpPacket::parse(payload) {
         Ok(res) => res,
@@ -468,12 +486,13 @@ fn handle_arp(
     // Web OSINT Server Broadcast
     if let Some(server) = web_server {
         let msg = format!(
-            "{{\"timestamp\":\"{}\",\"proto\":\"ARP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            "{{\"timestamp\":\"{}\",\"proto\":\"ARP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
             escape_json(&src),
             escape_json(&dst),
             escape_json(&info_raw),
-            size
+            size,
+            raw_hex
         );
         server.broadcast(&msg);
     }
@@ -511,6 +530,7 @@ fn process_packet(
 
     let now = Local::now();
     let time_str = now.format("%H:%M:%S%.3f").to_string();
+    let raw_hex = to_hex_string(packet_data);
 
     match eth_frame.ethertype() {
         EtherType::Ipv4 => {
@@ -543,13 +563,13 @@ fn process_packet(
                         }
 
                         // Re-parse ip_payload so handle_tcp can use it
-                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server);
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex);
                     } else {
-                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server);
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex);
                     }
                 }
-                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
-                1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex),
+                1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex),
                 _ => {}
             }
         }
@@ -563,14 +583,14 @@ fn process_packet(
             let dst_ip = format!("{}", ipv6_header.destination());
 
             match ipv6_header.next_header() {
-                6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
-                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
-                58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
+                6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex),
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex),
+                58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server, &raw_hex),
                 _ => {}
             }
         }
         EtherType::Arp => {
-            handle_arp(payload, &time_str, size, json_writer, web_server);
+            handle_arp(payload, &time_str, size, json_writer, web_server, &raw_hex);
         }
         _ => {}
     }
