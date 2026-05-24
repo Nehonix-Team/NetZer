@@ -521,7 +521,8 @@
         let selectedPacketIndex = null;
         let eventSource = null;
         
-        // Stats trackers
+        // Stats trackers & Batched Rendering Queue
+        const packetQueue = [];
         let totalCount = 0;
         let packetsThisSecond = 0;
         const rateHistory = Array(20).fill(0); // 20 data points for the bar chart
@@ -537,21 +538,29 @@
         lucide.createIcons();
         initChart();
 
-        // Connect to Server Sent Events
-        function connectSSE() {
-            eventSource = new EventSource('/events');
+        // Connect to WebSocket
+        function connectWS() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
             
-            eventSource.onopen = () => {
+            socket.onopen = () => {
                 statusBadge.classList.remove('disconnected');
                 statusText.innerText = 'LIVE MONITORING ACTIVE';
             };
 
-            eventSource.onerror = (e) => {
+            socket.onclose = () => {
+                statusBadge.classList.add('disconnected');
+                statusText.innerText = 'CONNECTION CLOSED';
+                // Try to reconnect after 2 seconds
+                setTimeout(connectWS, 2000);
+            };
+
+            socket.onerror = (e) => {
                 statusBadge.classList.add('disconnected');
                 statusText.innerText = 'CONNECTION ERROR';
             };
 
-            eventSource.onmessage = (event) => {
+            socket.onmessage = (event) => {
                 const packet = JSON.parse(event.data);
                 handleNewPacket(packet);
             };
@@ -560,7 +569,6 @@
         function handleNewPacket(packet) {
             totalCount++;
             packetsThisSecond++;
-            document.getElementById('stat-total').innerText = totalCount.toLocaleString();
 
             // Track target domain/IP counters
             const key = packet.info && packet.info !== '-' && packet.info !== '[ENCRYPTED]' && packet.info !== '[HTTP]'
@@ -568,43 +576,52 @@
                 : packet.dst;
             
             domainCounts[key] = (domainCounts[key] || 0) + 1;
-
-            packets.push(packet);
-            // Cap history
-            if (packets.length > 500) {
-                packets.shift();
-            }
-
-            renderPacketLine(packet, packets.length - 1);
-            updateTopTargets();
+            packetQueue.push(packet);
         }
 
-        // Render one packet row
-        function renderPacketLine(packet, index) {
-            // Apply filter
-            if (!matchesFilter(packet) || !matchesSearch(packet)) return;
+        // Periodic batch rendering loop (runs at 10Hz/100ms) to ensure smooth UI under high packet throughput
+        setInterval(() => {
+            if (packetQueue.length === 0) return;
 
-            const tr = document.createElement('tr');
-            tr.id = `packet-row-${index}`;
-            if (selectedPacketIndex === index) {
-                tr.classList.add('selected');
+            document.getElementById('stat-total').innerText = totalCount.toLocaleString();
+
+            const batch = packetQueue.splice(0, packetQueue.length);
+            for (const packet of batch) {
+                packets.push(packet);
             }
-            tr.onclick = () => selectPacket(index);
 
-            const protoLower = packet.proto.toLowerCase();
-            const badgeClass = `proto-badge proto-${protoLower}`;
+            if (packets.length > 500) {
+                packets.splice(0, packets.length - 500);
+            }
 
-            tr.innerHTML = `
-                <td style="color: var(--text-muted);">${packet.timestamp}</td>
-                <td><span class="${badgeClass}">${packet.proto}</span></td>
-                <td title="${packet.src}">${packet.src}</td>
-                <td title="${packet.dst}">${packet.dst}</td>
-                <td title="${packet.info || '-'}" style="color: ${packet.proto === 'TLS' ? 'var(--magenta)' : packet.proto === 'DNS' ? 'var(--warning)' : 'var(--text-main)'};">${packet.info || '-'}</td>
-                <td style="font-weight: 700; color: var(--warning);">${packet.size} B</td>
-            `;
+            const fragment = document.createDocumentFragment();
+            
+            batch.forEach((packet) => {
+                if (!matchesFilter(packet) || !matchesSearch(packet)) return;
 
-            // Insert at top or bottom (standard packet visualizers append and autoscroll)
-            packetList.appendChild(tr);
+                const tr = document.createElement('tr');
+                const index = packets.indexOf(packet);
+                tr.id = `packet-row-${index}`;
+                if (selectedPacketIndex === index) {
+                    tr.classList.add('selected');
+                }
+                tr.onclick = () => selectPacket(index);
+
+                const protoLower = packet.proto.toLowerCase();
+                const badgeClass = `proto-badge proto-${protoLower}`;
+
+                tr.innerHTML = `
+                    <td style="color: var(--text-muted);">${packet.timestamp}</td>
+                    <td><span class="${badgeClass}">${packet.proto}</span></td>
+                    <td title="${packet.src}">${packet.src}</td>
+                    <td title="${packet.dst}">${packet.dst}</td>
+                    <td title="${packet.info || '-'}" style="color: ${packet.proto === 'TLS' ? 'var(--magenta)' : packet.proto === 'DNS' ? 'var(--warning)' : 'var(--text-main)'};">${packet.info || '-'}</td>
+                    <td style="font-weight: 700; color: var(--warning);">${packet.size} B</td>
+                `;
+                fragment.appendChild(tr);
+            });
+
+            packetList.appendChild(fragment);
 
             // Cap the table DOM size to match packet history cap
             while (packetList.children.length > 300) {
@@ -614,7 +631,9 @@
             // Scroll container to bottom
             const container = document.querySelector('.table-container');
             container.scrollTop = container.scrollHeight;
-        }
+
+            updateTopTargets();
+        }, 100);
 
         function matchesFilter(packet) {
             if (activeFilter === 'all') return true;
@@ -792,9 +811,9 @@
             `).join('');
         }
 
-        // Connect SSE after page is fully loaded to prevent infinite browser loading spinner
+        // Connect WS after page is fully loaded to prevent infinite browser loading spinner
         window.addEventListener('load', () => {
-            setTimeout(connectSSE, 100);
+            setTimeout(connectWS, 100);
         });
     </script>
 </body>
