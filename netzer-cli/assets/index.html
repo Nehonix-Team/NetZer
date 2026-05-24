@@ -792,8 +792,10 @@
             `).join('');
         }
 
-        // Connect SSE on start
-        connectSSE();
+        // Connect SSE after page is fully loaded to prevent infinite browser loading spinner
+        window.addEventListener('load', () => {
+            setTimeout(connectSSE, 100);
+        });
     </script>
 </body>
 </html>

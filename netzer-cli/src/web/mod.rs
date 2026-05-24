@@ -1,6 +1,7 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::{Write, Read};
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
 pub mod assets;
@@ -8,13 +9,40 @@ pub mod assets;
 pub struct WebServer {
     clients: Arc<Mutex<Vec<TcpStream>>>,
     port: u16,
+    tx: Sender<String>,
 }
 
 impl WebServer {
     pub fn new(port: u16) -> Self {
+        let (tx, rx) = channel::<String>();
+        let clients = Arc::new(Mutex::new(Vec::<TcpStream>::new()));
+        
+        // Spawn the broadcaster thread to prevent blocking the packet capture loop
+        let clients_clone = clients.clone();
+        thread::spawn(move || {
+            while let Ok(msg) = rx.recv() {
+                let mut cls = clients_clone.lock().unwrap();
+                let mut to_remove = Vec::new();
+                let sse_data = format!("data: {}\n\n", msg);
+                let bytes = sse_data.as_bytes();
+
+                for (idx, client) in cls.iter_mut().enumerate() {
+                    if let Err(_) = client.write_all(bytes).and_then(|_| client.flush()) {
+                        to_remove.push(idx);
+                    }
+                }
+
+                // Remove disconnected clients in reverse order
+                for idx in to_remove.into_iter().rev() {
+                    cls.remove(idx);
+                }
+            }
+        });
+
         Self {
-            clients: Arc::new(Mutex::new(Vec::new())),
+            clients,
             port,
+            tx,
         }
     }
 
@@ -52,7 +80,7 @@ impl WebServer {
                                     let _ = stream.flush();
                                 } else if request.starts_with("GET /events ") {
                                     let response = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
-                                    let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(200)));
+                                    let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(100)));
                                     if stream.write_all(response.as_bytes()).is_ok() && stream.flush().is_ok() {
                                         let mut cls = clients_clone.lock().unwrap();
                                         cls.push(stream);
@@ -71,21 +99,6 @@ impl WebServer {
     }
 
     pub fn broadcast(&self, json_msg: &str) {
-        let mut clients = self.clients.lock().unwrap();
-        let mut to_remove = Vec::new();
-
-        let sse_data = format!("data: {}\n\n", json_msg);
-        let bytes = sse_data.as_bytes();
-
-        for (idx, client) in clients.iter_mut().enumerate() {
-            if let Err(_) = client.write_all(bytes).and_then(|_| client.flush()) {
-                to_remove.push(idx);
-            }
-        }
-
-        // Remove disconnected clients in reverse order
-        for idx in to_remove.into_iter().rev() {
-            clients.remove(idx);
-        }
+        let _ = self.tx.send(json_msg.to_string());
     }
 }
