@@ -465,6 +465,7 @@
         .badge-arp { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
         .badge-dns { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
         .badge-tls { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2); }
+        .badge-http { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
 
         .ip-col {
             color: #ffffff;
@@ -702,12 +703,12 @@
             border-radius: 8px;
             padding: 12px;
             font-family: var(--font-mono);
-            font-size: 10px;
-            line-height: 1.4;
+            font-size: 11px;
+            line-height: 1.5;
             color: #ffffff;
-            overflow-x: auto;
+            overflow: auto;
             white-space: pre;
-            max-height: 200px;
+            height: 250px;
         }
 
         .hexdump-offset {
@@ -886,6 +887,7 @@
                     <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
                     <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
                     <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
+                    <button class="filter-btn" onclick="setFilter('http')">HTTP</button>
                 </div>
                 <div class="search-wrapper">
                     <div class="search-input-container">
@@ -1323,6 +1325,7 @@
                 if (activeFilter === 'all') return true;
                 if (activeFilter === 'tls') return pkt.proto === 'TLS';
                 if (activeFilter === 'dns') return pkt.proto === 'DNS';
+                if (activeFilter === 'http') return pkt.proto === 'HTTP';
                 return pkt.proto.toLowerCase() === activeFilter;
             });
 
@@ -1365,13 +1368,23 @@
                     tr.className = "selected";
                 }
 
-                // Highlight TLS domains or DNS query details
+                // Highlight TLS domains, DNS query details, or HTTP methods
                 let infoFormatted = pkt.info;
                 if (pkt.info.includes("SNI:")) {
                     const parts = pkt.info.split("SNI:");
                     infoFormatted = `${parts[0]}SNI: <span class="highlight">${parts[1]}</span>`;
                 } else if (pkt.info.startsWith("DNS: ")) {
                     infoFormatted = `DNS Query: <span class="highlight">${pkt.info.substring(5)}</span>`;
+                } else if (pkt.proto === "HTTP") {
+                    const words = pkt.info.split(" ");
+                    if (words.length >= 2 && ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"].includes(words[0])) {
+                        infoFormatted = `<span style="color: var(--primary); font-weight: 700;">${words[0]}</span> <span style="color: #ffffff; font-weight: 500;">${words.slice(1).join(" ")}</span>`;
+                    } else if (pkt.info.startsWith("1") || pkt.info.startsWith("2") || pkt.info.startsWith("3") || pkt.info.startsWith("4") || pkt.info.startsWith("5")) {
+                        // Probably an HTTP status code (e.g. 200 OK)
+                        infoFormatted = `<span style="color: var(--success); font-weight: 700;">HTTP ${pkt.info}</span>`;
+                    } else {
+                        infoFormatted = `<span style="color: var(--success); font-weight: 700;">${pkt.info}</span>`;
+                    }
                 }
 
                 tr.innerHTML = `

@@ -224,9 +224,10 @@ fn handle_tcp(
     let src = format!("{}:{}", src_ip, src_port);
     let dst = format!("{}:{}", dst_ip, dst_port);
     
-    let domain_buf;
+    let mut domain_buf;
     let mut info_raw = "[ENCRYPTED]";
     let mut is_tls = false;
+    let mut is_http = false;
     
     if dst_port == 443 {
         if let Ok(tls) = TlsClientHello::parse(tcp_payload) {
@@ -238,17 +239,54 @@ fn handle_tcp(
         }
     } else {
         domain_buf = String::new();
-        if src_port == 80 || dst_port == 80 {
-            info_raw = "[HTTP]";
+        if src_port == 80 || dst_port == 80 || src_port == 8080 || dst_port == 8080 {
+            let payload_str = String::from_utf8_lossy(tcp_payload);
+            if let Some(first_line) = payload_str.lines().next() {
+                let trimmed = first_line.trim();
+                if trimmed.starts_with("GET ") || trimmed.starts_with("POST ") || trimmed.starts_with("PUT ") || trimmed.starts_with("DELETE ") || trimmed.starts_with("PATCH ") || trimmed.starts_with("OPTIONS ") || trimmed.starts_with("HEAD ") {
+                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        domain_buf = format!("{} {}", parts[0], parts[1]);
+                        info_raw = &domain_buf;
+                        is_http = true;
+                    } else {
+                        info_raw = "[HTTP Request]";
+                        is_http = true;
+                    }
+                } else if trimmed.starts_with("HTTP/") {
+                    let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
+                    if parts.len() >= 2 {
+                        domain_buf = parts[1..].join(" ");
+                        info_raw = &domain_buf;
+                        is_http = true;
+                    } else {
+                        info_raw = "[HTTP Response]";
+                        is_http = true;
+                    }
+                } else {
+                    info_raw = "[HTTP]";
+                    is_http = true;
+                }
+            } else {
+                info_raw = "[HTTP]";
+                is_http = true;
+            }
         }
     }
     
     // UI Printing
-    let proto_colored = format!("{:<5}", "TCP").bright_cyan().bold();
+    let proto_colored = if is_tls {
+        format!("{:<5}", "TLS").bright_magenta().bold()
+    } else if is_http {
+        format!("{:<5}", "HTTP").bright_green().bold()
+    } else {
+        format!("{:<5}", "TCP").bright_cyan().bold()
+    };
+    
     let info_colored = if info_raw == "[ENCRYPTED]" {
         format!("{:<35}", info_raw).bright_black().to_string()
-    } else if info_raw == "[HTTP]" {
-        format!("{:<35}", info_raw).white().to_string()
+    } else if is_http {
+        format!("{:<35}", info_raw).bright_green().to_string()
     } else {
         format!("{:<35}", info_raw).bright_magenta().bold().to_string()
     };
@@ -257,12 +295,19 @@ fn handle_tcp(
     
     // JSON Logging
     if let Some(writer) = json_writer {
-        let _ = writer.write_packet(time_str, "TCP", &src, &dst, info_raw, size);
+        let proto_log = if is_tls { "TLS" } else if is_http { "HTTP" } else { "TCP" };
+        let _ = writer.write_packet(time_str, proto_log, &src, &dst, info_raw, size);
     }
 
     // Web OSINT Server Broadcast
     if let Some(server) = web_server {
-        let proto_name = if is_tls { "TLS" } else { "TCP" };
+        let proto_name = if is_tls { 
+            "TLS" 
+        } else if is_http {
+            "HTTP"
+        } else { 
+            "TCP" 
+        };
         let msg = format!(
             "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{},\"payload\":\"{}\"}}",
             escape_json(time_str),
