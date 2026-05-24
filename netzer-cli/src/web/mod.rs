@@ -134,10 +134,11 @@ pub struct WebServer {
     clients: Arc<Mutex<Vec<TcpStream>>>,
     port: u16,
     tx: Sender<String>,
+    interface: String,
 }
 
 impl WebServer {
-    pub fn new(port: u16) -> Self {
+    pub fn new(port: u16, interface: &str) -> Self {
         let (tx, rx) = channel::<String>();
         let clients = Arc::new(Mutex::new(Vec::<TcpStream>::new()));
         
@@ -168,12 +169,15 @@ impl WebServer {
             clients,
             port,
             tx,
+            interface: interface.to_string(),
         }
     }
 
     pub fn start(&self) {
         let clients = self.clients.clone();
         let port = self.port;
+        let interface = self.interface.clone();
+        
         thread::spawn(move || {
             let listener = match TcpListener::bind(format!("127.0.0.1:{}", port)) {
                 Ok(l) => {
@@ -190,6 +194,8 @@ impl WebServer {
                 match stream {
                     Ok(mut stream) => {
                         let clients_clone = clients.clone();
+                        let interface_clone = interface.clone();
+                        
                         thread::spawn(move || {
                             let mut buf = [0u8; 2048];
                             if let Ok(n) = stream.read(&mut buf) {
@@ -229,6 +235,11 @@ impl WebServer {
 
                                         let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(100)));
                                         if stream.write_all(response.as_bytes()).is_ok() && stream.flush().is_ok() {
+                                            // Send initial system info frame
+                                            let sys_info = format!("{{\"type\":\"system\",\"interface\":\"{}\"}}", interface_clone);
+                                            let ws_frame = encode_ws_text_frame(&sys_info);
+                                            let _ = stream.write_all(&ws_frame).and_then(|_| stream.flush());
+
                                             let mut cls = clients_clone.lock().unwrap();
                                             cls.push(stream);
                                         }

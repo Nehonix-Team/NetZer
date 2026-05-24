@@ -682,7 +682,7 @@ fn main() {
 
     // Initialize and start Web OSINT Server if requested
     let web_server = if args.serve {
-        let ws = WebServer::new(args.port);
+        let ws = WebServer::new(args.port, &args.interface);
         ws.start();
         Some(ws)
     } else {
