@@ -202,6 +202,7 @@ fn handle_tcp(
     time_str: &str,
     size: usize,
     json_writer: &mut Option<JsonWriter>,
+    web_server: &Option<WebServer>,
 ) {
     let (tcp_header, tcp_payload) = match TcpHeader::parse(payload) {
         Ok(res) => res,
@@ -215,11 +216,13 @@ fn handle_tcp(
     
     let domain_buf;
     let mut info_raw = "[ENCRYPTED]";
+    let mut is_tls = false;
     
     if dst_port == 443 {
         if let Ok(tls) = TlsClientHello::parse(tcp_payload) {
             domain_buf = truncate(tls.sni, 35);
             info_raw = &domain_buf;
+            is_tls = true;
         } else {
             domain_buf = String::new();
         }
@@ -246,6 +249,21 @@ fn handle_tcp(
     if let Some(writer) = json_writer {
         let _ = writer.write_packet(time_str, "TCP", &src, &dst, info_raw, size);
     }
+
+    // Web OSINT Server Broadcast
+    if let Some(server) = web_server {
+        let proto_name = if is_tls { "TLS" } else { "TCP" };
+        let msg = format!(
+            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            escape_json(time_str),
+            escape_json(proto_name),
+            escape_json(&src),
+            escape_json(&dst),
+            escape_json(info_raw),
+            size
+        );
+        server.broadcast(&msg);
+    }
 }
 
 fn handle_udp(
@@ -255,6 +273,7 @@ fn handle_udp(
     time_str: &str,
     size: usize,
     json_writer: &mut Option<JsonWriter>,
+    web_server: &Option<WebServer>,
 ) {
     let (udp_header, udp_payload) = match UdpHeader::parse(payload) {
         Ok(res) => res,
@@ -297,6 +316,21 @@ fn handle_udp(
     if let Some(writer) = json_writer {
         let _ = writer.write_packet(time_str, "UDP", &src, &dst, info_raw, size);
     }
+
+    // Web OSINT Server Broadcast
+    if let Some(server) = web_server {
+        let proto_name = if is_dns { "DNS" } else { "UDP" };
+        let msg = format!(
+            "{{\"timestamp\":\"{}\",\"proto\":\"{}\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            escape_json(time_str),
+            escape_json(proto_name),
+            escape_json(&src),
+            escape_json(&dst),
+            escape_json(info_raw),
+            size
+        );
+        server.broadcast(&msg);
+    }
 }
 
 fn handle_icmp(
@@ -306,6 +340,7 @@ fn handle_icmp(
     time_str: &str,
     size: usize,
     json_writer: &mut Option<JsonWriter>,
+    web_server: &Option<WebServer>,
 ) {
     let (icmp_header, _) = match IcmpHeader::parse(payload) {
         Ok(res) => res,
@@ -330,6 +365,19 @@ fn handle_icmp(
     if let Some(writer) = json_writer {
         let _ = writer.write_packet(time_str, "ICMP", src_ip, dst_ip, &info_raw, size);
     }
+
+    // Web OSINT Server Broadcast
+    if let Some(server) = web_server {
+        let msg = format!(
+            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            escape_json(time_str),
+            escape_json(src_ip),
+            escape_json(dst_ip),
+            escape_json(&info_raw),
+            size
+        );
+        server.broadcast(&msg);
+    }
 }
 
 fn handle_icmpv6(
@@ -339,6 +387,7 @@ fn handle_icmpv6(
     time_str: &str,
     size: usize,
     json_writer: &mut Option<JsonWriter>,
+    web_server: &Option<WebServer>,
 ) {
     let (icmp_header, _) = match IcmpHeader::parse(payload) {
         Ok(res) => res,
@@ -368,6 +417,19 @@ fn handle_icmpv6(
     if let Some(writer) = json_writer {
         let _ = writer.write_packet(time_str, "ICMPv6", src_ip, dst_ip, &info_raw, size);
     }
+
+    // Web OSINT Server Broadcast
+    if let Some(server) = web_server {
+        let msg = format!(
+            "{{\"timestamp\":\"{}\",\"proto\":\"ICMP6\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            escape_json(time_str),
+            escape_json(src_ip),
+            escape_json(dst_ip),
+            escape_json(&info_raw),
+            size
+        );
+        server.broadcast(&msg);
+    }
 }
 
 fn handle_arp(
@@ -375,6 +437,7 @@ fn handle_arp(
     time_str: &str,
     size: usize,
     json_writer: &mut Option<JsonWriter>,
+    web_server: &Option<WebServer>,
 ) {
     let arp = match ArpPacket::parse(payload) {
         Ok(res) => res,
@@ -401,6 +464,19 @@ fn handle_arp(
     if let Some(writer) = json_writer {
         let _ = writer.write_packet(time_str, "ARP", &src, &dst, &info_raw, size);
     }
+
+    // Web OSINT Server Broadcast
+    if let Some(server) = web_server {
+        let msg = format!(
+            "{{\"timestamp\":\"{}\",\"proto\":\"ARP\",\"src\":\"{}\",\"dst\":\"{}\",\"info\":\"{}\",\"size\":{}}}",
+            escape_json(time_str),
+            escape_json(&src),
+            escape_json(&dst),
+            escape_json(&info_raw),
+            size
+        );
+        server.broadcast(&msg);
+    }
 }
 
 fn print_status_line(label: &str, value: &str) {
@@ -415,6 +491,7 @@ fn process_packet(
     json_writer: &mut Option<JsonWriter>,
     stream_tracker: &mut Option<TcpStreamTracker>,
     show_hexdump: bool,
+    web_server: &Option<WebServer>,
 ) {
     // Write raw frame to PCAP if enabled
     if let Some(writer) = pcap_writer {
@@ -466,13 +543,13 @@ fn process_packet(
                         }
 
                         // Re-parse ip_payload so handle_tcp can use it
-                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer);
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server);
                     } else {
-                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer);
+                        handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server);
                     }
                 }
-                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
-                1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
+                1 => handle_icmp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
                 _ => {}
             }
         }
@@ -486,14 +563,14 @@ fn process_packet(
             let dst_ip = format!("{}", ipv6_header.destination());
 
             match ipv6_header.next_header() {
-                6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
-                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
-                58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer),
+                6 => handle_tcp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
+                17 => handle_udp(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
+                58 => handle_icmpv6(&src_ip, &dst_ip, ip_payload, &time_str, size, json_writer, web_server),
                 _ => {}
             }
         }
         EtherType::Arp => {
-            handle_arp(payload, &time_str, size, json_writer);
+            handle_arp(payload, &time_str, size, json_writer, web_server);
         }
         _ => {}
     }
@@ -583,6 +660,15 @@ fn main() {
         None
     };
 
+    // Initialize and start Web OSINT Server if requested
+    let web_server = if args.serve {
+        let ws = WebServer::new(args.port);
+        ws.start();
+        Some(ws)
+    } else {
+        None
+    };
+
     print_banner(&args.interface);
 
     if args.ring_buffer {
@@ -593,6 +679,9 @@ fn main() {
     }
     if args.follow_streams {
         print_status_line("Follow Streams", "Active (TCP stream reassembly enabled)");
+    }
+    if args.serve {
+        print_status_line("OSINT Dashboard", &format!("Active (http://127.0.0.1:{})", args.port));
     }
     if args.filter_port.is_some() || args.filter_proto.is_some() {
         println!(" [SECURITY] BPF Kernel Filters Active:");
@@ -625,6 +714,7 @@ fn main() {
                     &mut json_writer,
                     &mut stream_tracker,
                     args.hexdump,
+                    &web_server,
                 );
             }) {
                 eprintln!(" [SYSTEM] Ring buffer read error: {}", e);
@@ -644,6 +734,7 @@ fn main() {
                         &mut json_writer,
                         &mut stream_tracker,
                         args.hexdump,
+                        &web_server,
                     );
                 }
                 Err(e) => {
