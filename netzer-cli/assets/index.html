@@ -1,790 +1,841 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NetZer // Deep Packet Analyzer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        :root {
-            --bg-main: #060913;
-            --bg-card: #0b1120;
-            --bg-input: #0f172a;
-            --border: rgba(255, 255, 255, 0.05);
-            --border-hover: rgba(255, 255, 255, 0.1);
-            
-            --text-main: #f8fafc;
-            --text-muted: #64748b;
-            --text-dim: #475569;
-            
-            --primary: #00bcd4;
-            --primary-glow: rgba(0, 188, 212, 0.15);
-            --primary-hover: #26c6da;
-            
-            --success: #10b981;
-            --success-glow: rgba(16, 185, 129, 0.15);
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            
-            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            font-family: var(--font-sans);
-            font-size: 14px;
-            line-height: 1.5;
-            overflow-x: hidden;
-            letter-spacing: -0.011em;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Scrollbar styles */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.1);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        /* Top Header */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border);
-            background-color: rgba(6, 9, 19, 0.8);
-            backdrop-filter: blur(12px);
-            z-index: 100;
-            flex-shrink: 0;
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            color: var(--primary);
-            filter: drop-shadow(0 0 8px var(--primary-glow));
-        }
-
-        .logo-text {
-            font-size: 20px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            color: #ffffff;
-            font-style: italic;
-        }
-        .logo-text span {
-            color: var(--primary);
-        }
-
-        .logo-subtitle {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            letter-spacing: 0.15em;
-            color: var(--text-muted);
-            font-weight: 500;
-            border-left: 1px solid var(--border);
-            padding-left: 12px;
-            margin-left: 4px;
-        }
-
-        .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--success-glow);
-            color: var(--success);
-            padding: 4px 10px;
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            animation: pulse 2s infinite ease-in-out;
-        }
-        
-        .status-badge.offline {
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--warning);
-            border-color: rgba(245, 158, 11, 0.2);
-        }
-        .status-badge.offline .status-dot {
-            background-color: var(--warning);
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--success);
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .header-meta {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .meta-box {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .meta-label {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 2px;
-        }
-
-        .meta-value {
-            font-family: var(--font-mono);
-            font-size: 14px;
-            font-weight: 600;
-            color: #ffffff;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-left: 1px solid var(--border);
-            padding-left: 20px;
-            margin-left: 10px;
-        }
-
-        .icon-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .icon-btn:hover {
-            color: #ffffff;
-            border-color: var(--border-hover);
-            background: rgba(255,255,255,0.02);
-        }
-
-        /* Top Cards Grid */
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            padding: 20px 24px;
-            flex-shrink: 0;
-        }
-
-        .kpi-card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            overflow: hidden;
-            transition: border-color 0.2s ease;
-        }
-        .kpi-card:hover {
-            border-color: rgba(0, 188, 212, 0.3);
-        }
-
-        .kpi-content {
-            z-index: 2;
-        }
-
-        .kpi-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 6px;
-        }
-
-        .kpi-value {
-            font-family: var(--font-mono);
-            font-size: 22px;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.1;
-        }
-        .kpi-value span {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-muted);
-            margin-left: 4px;
-        }
-
-        .kpi-sub {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-
-        .kpi-icon-wrapper {
-            width: 44px;
-            height: 44px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            transition: all 0.2s ease;
-        }
-        .kpi-card:hover .kpi-icon-wrapper {
-            color: var(--primary);
-            border-color: rgba(0, 188, 212, 0.2);
-            background: var(--primary-glow);
-        }
-
-        /* Sparkline in Card 1 */
-        .sparkline {
-            display: flex;
-            align-items: flex-end;
-            gap: 2px;
-            height: 20px;
-            margin-top: 8px;
-        }
-        .sparkbar {
-            width: 3px;
-            height: 4px;
-            background-color: var(--text-dim);
-            border-radius: 1px;
-            transition: all 0.3s ease;
-        }
-        .sparkbar.active {
-            background-color: var(--primary);
-        }
-
-        /* Main Workspace Container */
-        .workspace {
-            display: flex;
-            flex: 1;
-            padding: 0 24px 24px 24px;
-            gap: 20px;
-            overflow: hidden;
-        }
-
-        /* Left Section: Table */
-        .main-panel {
-            flex: 1;
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Toolbar */
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            gap: 16px;
-            flex-shrink: 0;
-        }
-
-        .filters-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .filter-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .filter-btn:hover {
-            color: #ffffff;
-            border-color: var(--border-hover);
-        }
-        .filter-btn.active {
-            background-color: var(--primary);
-            border-color: var(--primary);
-            color: #060913;
-            box-shadow: 0 0 12px var(--primary-glow);
-        }
-
-        .search-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex: 1;
-            max-width: 320px;
-        }
-
-        .search-input-container {
-            position: relative;
-            flex: 1;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-dim);
-            pointer-events: none;
-            width: 14px;
-            height: 14px;
-        }
-
-        .search-input {
-            width: 100%;
-            background-color: var(--bg-input);
-            border: 1px solid var(--border);
-            color: #ffffff;
-            padding: 7px 12px 7px 36px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-family: var(--font-sans);
-            outline: none;
-            transition: all 0.2s ease;
-        }
-        .search-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px var(--primary-glow);
-        }
-
-        /* Table */
-        .table-container {
-            flex: 1;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th {
-            background-color: rgba(6, 9, 19, 0.3);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            padding: 12px 20px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
-        }
-
-        td {
-            padding: 12px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.02);
-            font-family: var(--font-mono);
-            font-size: 12px;
-            vertical-align: middle;
-            transition: background 0.15s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        tr {
-            cursor: pointer;
-        }
-        tr:hover td {
-            background-color: rgba(255,255,255,0.015);
-        }
-        tr.selected td {
-            background-color: rgba(0, 188, 212, 0.05);
-            border-bottom-color: rgba(0, 188, 212, 0.15);
-        }
-
-        /* Protocol Badges */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: var(--font-sans);
-            font-size: 9px;
-            font-weight: 800;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .badge-tcp { background: rgba(0, 188, 212, 0.15); color: #00bcd4; border: 1px solid rgba(0, 188, 212, 0.2); }
-        .badge-udp { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
-        .badge-icmp, .badge-icmp6 { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
-        .badge-arp { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
-        .badge-dns { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .badge-tls { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2); }
-        .badge-http { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-
-        .ip-col {
-            color: #ffffff;
-            font-weight: 500;
-        }
-
-        .info-col {
-            color: var(--text-muted);
-            max-width: 300px;
-        }
-        .info-col span.highlight {
-            color: var(--primary);
-            font-weight: 500;
-        }
-
-        .size-col {
-            color: var(--warning);
-            text-align: right;
-        }
-
-        .time-col {
-            color: var(--text-muted);
-        }
-
-        /* Table Footer */
-        .table-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 20px;
-            border-top: 1px solid var(--border);
-            background-color: rgba(6, 9, 19, 0.1);
-            font-size: 11px;
-            color: var(--text-muted);
-            flex-shrink: 0;
-        }
-
-        .footer-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .pagination {
-            display: flex;
-            gap: 6px;
-        }
-
-        .page-btn {
-            background-color: var(--bg-input);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            width: 24px;
-            height: 24px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .page-btn:hover {
-            color: #ffffff;
-            border-color: var(--border-hover);
-        }
-        .page-btn.active {
-            background-color: var(--primary);
-            color: #060913;
-            border-color: var(--primary);
-            font-weight: 700;
-        }
-
-        /* Right Section: Sidebar (Charts & Inspection) */
-        .sidebar {
-            width: 360px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            overflow-y: auto;
-            flex-shrink: 0;
-        }
-
-        .side-card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 18px 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 14px;
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
-        }
-        .card-header svg {
-            color: var(--primary);
-        }
-
-        /* Section 1: Traffic Chart */
-        .chart-visualizer {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            height: 120px;
-            padding-top: 10px;
-            border-bottom: 1px solid var(--border);
-            position: relative;
-            gap: 3px;
-        }
-
-        .chart-bar-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            height: 100%;
-            justify-content: flex-end;
-        }
-
-        .chart-bar {
-            width: 100%;
-            background: linear-gradient(180deg, var(--primary) 0%, rgba(0, 188, 212, 0.1) 100%);
-            border-top-left-radius: 3px;
-            border-top-right-radius: 3px;
-            min-height: 2px;
-            transition: height 0.3s ease;
-            box-shadow: 0 0 8px rgba(0, 188, 212, 0.1);
-        }
-
-        .chart-bar-label {
-            font-size: 8px;
-            color: var(--text-dim);
-            margin-top: 6px;
-            font-family: var(--font-mono);
-        }
-
-        /* Section 2: Top Target Progress Bars */
-        .target-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .target-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .target-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            font-family: var(--font-mono);
-        }
-
-        .target-name {
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 220px;
-        }
-
-        .target-count {
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        .progress-track {
-            height: 4px;
-            background: var(--bg-input);
-            border-radius: 100px;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 100px;
-            width: 0%;
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Section 3: Packet Inspection & Monospace hexdump */
-        .inspect-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--primary);
-            margin-bottom: 8px;
-            margin-top: 4px;
-        }
-
-        .metadata-grid {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            row-gap: 6px;
-            column-gap: 16px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            background: var(--bg-input);
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            margin-bottom: 14px;
-        }
-
-        .meta-label-lbl {
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .meta-value-val {
-            color: #ffffff;
-            text-align: right;
-            word-break: break-all;
-        }
-
-        .hexdump-container {
-            background-color: #03050a;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            line-height: 1.5;
-            color: #ffffff;
-            overflow: auto;
-            white-space: pre;
-            height: 250px;
-        }
-
-        .hexdump-offset {
-            color: var(--text-dim);
-            font-weight: bold;
-        }
-
-        .hexdump-bytes {
-            color: var(--primary);
-        }
-
-        .hexdump-ascii {
-            color: #10b981;
-        }
-
-        .placeholder-text {
-            color: var(--text-dim);
-            font-size: 11px;
-            text-align: center;
-            padding: 16px;
-            font-style: italic;
-        }
-
-        /* Empty state styling */
-        .empty-row td {
-            text-align: center;
-            color: var(--text-dim);
-            padding: 40px;
-            font-style: italic;
-        }
+      :root {
+        --bg-main: #060913;
+        --bg-card: #0b1120;
+        --bg-input: #0f172a;
+        --border: rgba(255, 255, 255, 0.05);
+        --border-hover: rgba(255, 255, 255, 0.1);
+
+        --text-main: #f8fafc;
+        --text-muted: #64748b;
+        --text-dim: #475569;
+
+        --primary: #00bcd4;
+        --primary-glow: rgba(0, 188, 212, 0.15);
+        --primary-hover: #26c6da;
+
+        --success: #10b981;
+        --success-glow: rgba(16, 185, 129, 0.15);
+        --warning: #f59e0b;
+        --danger: #ef4444;
+
+        --font-sans:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-x: hidden;
+        letter-spacing: -0.011em;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Scrollbar styles */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.1);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      /* Top Header */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background-color: rgba(6, 9, 19, 0.8);
+        backdrop-filter: blur(12px);
+        z-index: 100;
+        flex-shrink: 0;
+      }
+
+      .logo-section {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        color: var(--primary);
+        filter: drop-shadow(0 0 8px var(--primary-glow));
+      }
+
+      .logo-text {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+        font-style: italic;
+      }
+      .logo-text span {
+        color: var(--primary);
+      }
+
+      .logo-subtitle {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.15em;
+        color: var(--text-muted);
+        font-weight: 500;
+        border-left: 1px solid var(--border);
+        padding-left: 12px;
+        margin-left: 4px;
+      }
+
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--success-glow);
+        color: var(--success);
+        padding: 4px 10px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        animation: pulse 2s infinite ease-in-out;
+      }
+
+      .status-badge.offline {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+        border-color: rgba(245, 158, 11, 0.2);
+      }
+      .status-badge.offline .status-dot {
+        background-color: var(--warning);
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        background-color: var(--success);
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .header-meta {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .meta-box {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .meta-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 2px;
+      }
+
+      .meta-value {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-left: 1px solid var(--border);
+        padding-left: 20px;
+        margin-left: 10px;
+      }
+
+      .icon-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .icon-btn:hover {
+        color: #ffffff;
+        border-color: var(--border-hover);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      /* Top Cards Grid */
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        padding: 20px 24px;
+        flex-shrink: 0;
+      }
+
+      .kpi-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.2s ease;
+      }
+      .kpi-card:hover {
+        border-color: rgba(0, 188, 212, 0.3);
+      }
+
+      .kpi-content {
+        z-index: 2;
+      }
+
+      .kpi-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+      }
+
+      .kpi-value {
+        font-family: var(--font-mono);
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.1;
+      }
+      .kpi-value span {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        margin-left: 4px;
+      }
+
+      .kpi-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .kpi-icon-wrapper {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+      }
+      .kpi-card:hover .kpi-icon-wrapper {
+        color: var(--primary);
+        border-color: rgba(0, 188, 212, 0.2);
+        background: var(--primary-glow);
+      }
+
+      /* Sparkline in Card 1 */
+      .sparkline {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 20px;
+        margin-top: 8px;
+      }
+      .sparkbar {
+        width: 3px;
+        height: 4px;
+        background-color: var(--text-dim);
+        border-radius: 1px;
+        transition: all 0.3s ease;
+      }
+      .sparkbar.active {
+        background-color: var(--primary);
+      }
+
+      /* Main Workspace Container */
+      .workspace {
+        display: flex;
+        flex: 1;
+        padding: 0 24px 24px 24px;
+        gap: 20px;
+        overflow: hidden;
+      }
+
+      /* Left Section: Table */
+      .main-panel {
+        flex: 1;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Toolbar */
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        gap: 16px;
+        flex-shrink: 0;
+      }
+
+      .filters-group {
+        display: flex;
+        gap: 8px;
+      }
+
+      .filter-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .filter-btn:hover {
+        color: #ffffff;
+        border-color: var(--border-hover);
+      }
+      .filter-btn.active {
+        background-color: var(--primary);
+        border-color: var(--primary);
+        color: #060913;
+        box-shadow: 0 0 12px var(--primary-glow);
+      }
+
+      .search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        max-width: 320px;
+      }
+
+      .search-input-container {
+        position: relative;
+        flex: 1;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-dim);
+        pointer-events: none;
+        width: 14px;
+        height: 14px;
+      }
+
+      .search-input {
+        width: 100%;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border);
+        color: #ffffff;
+        padding: 7px 12px 7px 36px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-family: var(--font-sans);
+        outline: none;
+        transition: all 0.2s ease;
+      }
+      .search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px var(--primary-glow);
+      }
+
+      /* Table */
+      .table-container {
+        flex: 1;
+        overflow-y: auto;
+        position: relative;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+
+      th {
+        background-color: rgba(6, 9, 19, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 12px 20px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+      }
+
+      td {
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        vertical-align: middle;
+        transition: background 0.15s ease;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      tr {
+        cursor: pointer;
+      }
+      tr:hover td {
+        background-color: rgba(255, 255, 255, 0.015);
+      }
+      tr.selected td {
+        background-color: rgba(0, 188, 212, 0.05);
+        border-bottom-color: rgba(0, 188, 212, 0.15);
+      }
+
+      /* Protocol Badges */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-sans);
+        font-size: 9px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .badge-tcp {
+        background: rgba(0, 188, 212, 0.15);
+        color: #00bcd4;
+        border: 1px solid rgba(0, 188, 212, 0.2);
+      }
+      .badge-udp {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+      }
+      .badge-icmp,
+      .badge-icmp6 {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+      .badge-arp {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+      }
+      .badge-dns {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+      .badge-tls {
+        background: rgba(168, 85, 247, 0.15);
+        color: #a855f7;
+        border: 1px solid rgba(168, 85, 247, 0.2);
+      }
+      .badge-http {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+
+      .ip-col {
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      .info-col {
+        color: var(--text-muted);
+        max-width: 300px;
+      }
+      .info-col span.highlight {
+        color: var(--primary);
+        font-weight: 500;
+      }
+
+      .size-col {
+        color: var(--warning);
+        text-align: right;
+      }
+
+      .time-col {
+        color: var(--text-muted);
+      }
+
+      /* Table Footer */
+      .table-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        border-top: 1px solid var(--border);
+        background-color: rgba(6, 9, 19, 0.1);
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+
+      .footer-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pagination {
+        display: flex;
+        gap: 6px;
+      }
+
+      .page-btn {
+        background-color: var(--bg-input);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .page-btn:hover {
+        color: #ffffff;
+        border-color: var(--border-hover);
+      }
+      .page-btn.active {
+        background-color: var(--primary);
+        color: #060913;
+        border-color: var(--primary);
+        font-weight: 700;
+      }
+
+      /* Right Section: Sidebar (Charts & Inspection) */
+      .sidebar {
+        width: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        overflow-y: auto;
+        flex-shrink: 0;
+      }
+
+      .side-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+      }
+      .card-header svg {
+        color: var(--primary);
+      }
+
+      /* Section 1: Traffic Chart */
+      .chart-visualizer {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        height: 120px;
+        padding-top: 10px;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        gap: 3px;
+      }
+
+      .chart-bar-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        height: 100%;
+        justify-content: flex-end;
+      }
+
+      .chart-bar {
+        width: 100%;
+        background: linear-gradient(
+          180deg,
+          var(--primary) 0%,
+          rgba(0, 188, 212, 0.1) 100%
+        );
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+        min-height: 2px;
+        transition: height 0.3s ease;
+        box-shadow: 0 0 8px rgba(0, 188, 212, 0.1);
+      }
+
+      .chart-bar-label {
+        font-size: 8px;
+        color: var(--text-dim);
+        margin-top: 6px;
+        font-family: var(--font-mono);
+      }
+
+      /* Section 2: Top Target Progress Bars */
+      .target-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .target-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .target-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        font-family: var(--font-mono);
+      }
+
+      .target-name {
+        color: var(--text-main);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 220px;
+      }
+
+      .target-count {
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      .progress-track {
+        height: 4px;
+        background: var(--bg-input);
+        border-radius: 100px;
+        overflow: hidden;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background: var(--primary);
+        border-radius: 100px;
+        width: 0%;
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Section 3: Packet Inspection & Monospace hexdump */
+      .inspect-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--primary);
+        margin-bottom: 8px;
+        margin-top: 4px;
+      }
+
+      .metadata-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        row-gap: 6px;
+        column-gap: 16px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        background: var(--bg-input);
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        margin-bottom: 14px;
+      }
+
+      .meta-label-lbl {
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+
+      .meta-value-val {
+        color: #ffffff;
+        text-align: right;
+        word-break: break-all;
+      }
+
+      .hexdump-container {
+        background-color: #03050a;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        line-height: 1.5;
+        color: #ffffff;
+        overflow: auto;
+        white-space: pre;
+        height: 250px;
+      }
+
+      .hexdump-offset {
+        color: var(--text-dim);
+        font-weight: bold;
+      }
+
+      .hexdump-bytes {
+        color: var(--primary);
+      }
+
+      .hexdump-ascii {
+        color: #10b981;
+      }
+
+      .placeholder-text {
+        color: var(--text-dim);
+        font-size: 11px;
+        text-align: center;
+        padding: 16px;
+        font-style: italic;
+      }
+
+      /* Empty state styling */
+      .empty-row td {
+        text-align: center;
+        color: var(--text-dim);
+        padding: 40px;
+        font-style: italic;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <!-- Header Section -->
     <header>
-        <div class="logo-section">
-            <div class="logo-icon">
-                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                    <polyline points="2 17 12 22 22 17"></polyline>
-                    <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
-            </div>
-            <div class="logo-text">Net<span>Zer</span></div>
-            <div class="logo-subtitle">DEEP PACKET ANALYZER</div>
-            <div class="status-badge" id="status-badge">
-                <span class="status-dot"></span>
-                Live Monitoring Active
-            </div>
+      <div class="logo-section">
+        <div class="logo-icon">
+          <svg
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            stroke="currentColor"
+            stroke-width="2.5"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="logo-text">Net<span>Zer</span></div>
+        <div class="logo-subtitle">// DEEP PACKET ANALYZER</div>
+        <div class="status-badge" id="status-badge">
+          <span class="status-dot"></span>
+          CONNECTED
+        </div>
+      </div>
+
+      <div class="header-meta">
+        <div class="meta-box">
+          <span class="meta-label">Interface</span>
+          <span class="meta-value" id="active-interface">-</span>
+        </div>
+        <div class="meta-box">
+          <span class="meta-label">Uptime</span>
+          <span class="meta-value" id="uptime-counter">00:00:00</span>
+        </div>
+        <div class="meta-box">
+          <span class="meta-label">Packets / Sec</span>
+          <span class="meta-value" id="header-rate">0 pkt/s</span>
         </div>
 
-        <div class="header-meta">
-            <div class="meta-box">
-                <span class="meta-label">Interface</span>
-                <span class="meta-value" id="active-interface">-</span>
-            </div>
-            <div class="meta-box">
-                <span class="meta-label">Uptime</span>
-                <span class="meta-value" id="uptime-counter">00:00:00</span>
-            </div>
-            <div class="meta-box">
-                <span class="meta-label">Packets / Sec</span>
-                <span class="meta-value" id="header-rate">0 pkt/s</span>
-            </div>
-            
-            <!-- <div class="header-actions">
+        <!-- <div class="header-actions">
                 <button class="icon-btn" title="Settings">
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -797,476 +848,613 @@
                     </svg>
                 </button>
             </div> -->
-        </div>
+      </div>
     </header>
 
     <!-- Top KPI cards Row -->
     <section class="kpi-row">
-        <!-- Card 1: Packets/Sec -->
-        <div class="kpi-card">
-            <div class="kpi-content">
-                <div class="kpi-label">Packets / Sec</div>
-                <div class="kpi-value" id="kpi-rate">0<span>pkt/s</span></div>
-                <div class="sparkline" id="sparkline">
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                    <div class="sparkbar"></div>
-                </div>
-            </div>
-            <div class="kpi-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-            </div>
+      <!-- Card 1: Packets/Sec -->
+      <div class="kpi-card">
+        <div class="kpi-content">
+          <div class="kpi-label">Packets / Sec</div>
+          <div class="kpi-value" id="kpi-rate">0<span>pkt/s</span></div>
+          <div class="sparkline" id="sparkline">
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+            <div class="sparkbar"></div>
+          </div>
         </div>
+        <div class="kpi-icon-wrapper">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+      </div>
 
-        <!-- Card 2: Top Target IP -->
-        <div class="kpi-card">
-            <div class="kpi-content">
-                <div class="kpi-label">Top Target IP</div>
-                <div class="kpi-value" id="kpi-top-ip" style="font-size: 16px; margin: 4px 0;">-</div>
-                <div class="kpi-sub" id="kpi-top-ip-count">0 pkts</div>
-            </div>
-            <div class="kpi-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="22" y1="12" x2="18" y2="12"></line>
-                    <line x1="6" y1="12" x2="2" y2="12"></line>
-                    <line x1="12" y1="6" x2="12" y2="2"></line>
-                    <line x1="12" y1="22" x2="12" y2="18"></line>
-                </svg>
-            </div>
+      <!-- Card 2: Top Target IP -->
+      <div class="kpi-card">
+        <div class="kpi-content">
+          <div class="kpi-label">Top Target IP</div>
+          <div
+            class="kpi-value"
+            id="kpi-top-ip"
+            style="font-size: 16px; margin: 4px 0"
+          >
+            -
+          </div>
+          <div class="kpi-sub" id="kpi-top-ip-count">0 pkts</div>
         </div>
+        <div class="kpi-icon-wrapper">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="22" y1="12" x2="18" y2="12"></line>
+            <line x1="6" y1="12" x2="2" y2="12"></line>
+            <line x1="12" y1="6" x2="12" y2="2"></line>
+            <line x1="12" y1="22" x2="12" y2="18"></line>
+          </svg>
+        </div>
+      </div>
 
-        <!-- Card 3: Top Target Domain -->
-        <div class="kpi-card">
-            <div class="kpi-content">
-                <div class="kpi-label">Top Target Domain</div>
-                <div class="kpi-value" id="kpi-top-domain" style="font-size: 15px; margin: 4px 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</div>
-                <div class="kpi-sub" id="kpi-top-domain-count">0 pkts</div>
-            </div>
-            <div class="kpi-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                </svg>
-            </div>
+      <!-- Card 3: Top Target Domain -->
+      <div class="kpi-card">
+        <div class="kpi-content">
+          <div class="kpi-label">Top Target Domain</div>
+          <div
+            class="kpi-value"
+            id="kpi-top-domain"
+            style="
+              font-size: 15px;
+              margin: 4px 0;
+              max-width: 220px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            "
+          >
+            -
+          </div>
+          <div class="kpi-sub" id="kpi-top-domain-count">0 pkts</div>
         </div>
+        <div class="kpi-icon-wrapper">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path
+              d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+            ></path>
+          </svg>
+        </div>
+      </div>
 
-        <!-- Card 4: Total Traffic -->
-        <div class="kpi-card">
-            <div class="kpi-content">
-                <div class="kpi-label">Total Traffic</div>
-                <div class="kpi-value" id="kpi-traffic">0 B</div>
-                <div class="kpi-sub" id="kpi-traffic-count">0 packets</div>
-            </div>
-            <div class="kpi-icon-wrapper">
-                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                </svg>
-            </div>
+      <!-- Card 4: Total Traffic -->
+      <div class="kpi-card">
+        <div class="kpi-content">
+          <div class="kpi-label">Total Traffic</div>
+          <div class="kpi-value" id="kpi-traffic">0 B</div>
+          <div class="kpi-sub" id="kpi-traffic-count">0 packets</div>
         </div>
+        <div class="kpi-icon-wrapper">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+        </div>
+      </div>
     </section>
 
     <!-- Workspace Area -->
     <main class="workspace">
-        <!-- Main Panel (Left 70%) -->
-        <section class="main-panel">
-            <!-- Toolbar -->
-            <div class="toolbar">
-                <div class="filters-group">
-                    <button class="filter-btn active" onclick="setFilter('all')">ALL</button>
-                    <button class="filter-btn" onclick="setFilter('tcp')">TCP</button>
-                    <button class="filter-btn" onclick="setFilter('udp')">UDP</button>
-                    <button class="filter-btn" onclick="setFilter('icmp')">ICMP</button>
-                    <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
-                    <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
-                    <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
-                    <button class="filter-btn" onclick="setFilter('http')">HTTP</button>
-                </div>
-                <div class="search-wrapper">
-                    <div class="search-input-container">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" id="search-input" class="search-input" placeholder="Search IP, Domain, Port..." oninput="handleSearch()">
-                    </div>
-                    <button class="icon-btn" title="Filters toggle">
-                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                        </svg>
-                    </button>
-                </div>
+      <!-- Main Panel (Left 70%) -->
+      <section class="main-panel">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="filters-group">
+            <button class="filter-btn active" onclick="setFilter('all')">
+              ALL
+            </button>
+            <button class="filter-btn" onclick="setFilter('tcp')">TCP</button>
+            <button class="filter-btn" onclick="setFilter('udp')">UDP</button>
+            <button class="filter-btn" onclick="setFilter('icmp')">ICMP</button>
+            <button class="filter-btn" onclick="setFilter('arp')">ARP</button>
+            <button class="filter-btn" onclick="setFilter('dns')">DNS</button>
+            <button class="filter-btn" onclick="setFilter('tls')">TLS</button>
+            <button class="filter-btn" onclick="setFilter('http')">HTTP</button>
+          </div>
+          <div class="search-wrapper">
+            <div class="search-input-container">
+              <svg
+                class="search-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="text"
+                id="search-input"
+                class="search-input"
+                placeholder="Search IP, Domain, Port..."
+                oninput="handleSearch()"
+              />
             </div>
+            <button class="icon-btn" title="Filters toggle">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon
+                  points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                ></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
 
-            <!-- Table Container -->
-            <div class="table-container">
-                <table id="packets-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 15%">Time</th>
-                            <th style="width: 10%">Proto</th>
-                            <th style="width: 25%">Source</th>
-                            <th style="width: 25%">Destination</th>
-                            <th style="width: 17%">Info / Domain</th>
-                            <th style="width: 8%; text-align: right;">Size</th>
-                        </tr>
-                    </thead>
-                    <tbody id="packets-list">
-                        <tr class="empty-row">
-                            <td colspan="6">Waiting for incoming traffic stream...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- Table Container -->
+        <div class="table-container">
+          <table id="packets-table">
+            <thead>
+              <tr>
+                <th style="width: 15%">Time</th>
+                <th style="width: 10%">Proto</th>
+                <th style="width: 25%">Source</th>
+                <th style="width: 25%">Destination</th>
+                <th style="width: 17%">Info / Domain</th>
+                <th style="width: 8%; text-align: right">Size</th>
+              </tr>
+            </thead>
+            <tbody id="packets-list">
+              <tr class="empty-row">
+                <td colspan="6">Waiting for incoming traffic stream...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-            <!-- Footer statistics -->
-            <div class="table-footer">
-                <div class="footer-status">
-                    <span class="status-dot"></span>
-                    <span id="footer-count">Showing 0 to 0 of 0 entries</span>
-                </div>
-                <div class="pagination">
-                    <button class="page-btn" onclick="prevPage()">&lt;</button>
-                    <button class="page-btn active" id="page-num-btn">1</button>
-                    <button class="page-btn" onclick="nextPage()">&gt;</button>
-                </div>
-            </div>
-        </section>
+        <!-- Footer statistics -->
+        <div class="table-footer">
+          <div class="footer-status">
+            <span class="status-dot"></span>
+            <span id="footer-count">Showing 0 to 0 of 0 entries</span>
+          </div>
+          <div class="pagination">
+            <button class="page-btn" onclick="prevPage()">&lt;</button>
+            <button class="page-btn active" id="page-num-btn">1</button>
+            <button class="page-btn" onclick="nextPage()">&gt;</button>
+          </div>
+        </div>
+      </section>
 
-        <!-- Sidebar Section (Right 30%) -->
-        <aside class="sidebar">
-            <!-- 1: Traffic Chart -->
-            <div class="side-card">
-                <div class="card-header">
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
-                    Traffic over time
-                </div>
-                <div class="chart-visualizer" id="chart-visualizer">
-                    <!-- Dynamic Bars populated by JS -->
-                </div>
-            </div>
+      <!-- Sidebar Section (Right 30%) -->
+      <aside class="sidebar">
+        <!-- 1: Traffic Chart -->
+        <div class="side-card">
+          <div class="card-header">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            Traffic over time
+          </div>
+          <div class="chart-visualizer" id="chart-visualizer">
+            <!-- Dynamic Bars populated by JS -->
+          </div>
+        </div>
 
-            <!-- 2: Top Target Domains/IPs -->
-            <div class="side-card">
-                <div class="card-header">
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    </svg>
-                    Top Target Domains / IPs
-                </div>
-                <div class="target-list" id="top-targets-list">
-                    <div class="placeholder-text">No target data gathered yet.</div>
-                </div>
-            </div>
+        <!-- 2: Top Target Domains/IPs -->
+        <div class="side-card">
+          <div class="card-header">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            Top Target Domains / IPs
+          </div>
+          <div class="target-list" id="top-targets-list">
+            <div class="placeholder-text">No target data gathered yet.</div>
+          </div>
+        </div>
 
-            <!-- 3: Packet Inspection Monospace Hex block -->
-            <div class="side-card" style="flex: 1; min-height: 250px;">
-                <div class="card-header">
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="16 18 22 12 16 6"></polyline>
-                        <polyline points="8 6 2 12 8 18"></polyline>
-                    </svg>
-                    Packet Inspection
-                </div>
-                
-                <div class="inspect-title">Ethernet & IP Metadata</div>
-                <div class="metadata-grid">
-                    <span class="meta-label-lbl">Time:</span>
-                    <span class="meta-value-val" id="inspect-time">-</span>
-                    
-                    <span class="meta-label-lbl">Protocol:</span>
-                    <span class="meta-value-val" id="inspect-proto">-</span>
-                    
-                    <span class="meta-label-lbl">Source IP:</span>
-                    <span class="meta-value-val" id="inspect-src">-</span>
-                    
-                    <span class="meta-label-lbl">Dest IP:</span>
-                    <span class="meta-value-val" id="inspect-dst">-</span>
-                    
-                    <span class="meta-label-lbl">Packet Size:</span>
-                    <span class="meta-value-val" id="inspect-size">-</span>
-                    
-                    <span class="meta-label-lbl">L7 Info:</span>
-                    <span class="meta-value-val" style="color: var(--primary);" id="inspect-info">-</span>
-                </div>
+        <!-- 3: Packet Inspection Monospace Hex block -->
+        <div class="side-card" style="flex: 1; min-height: 250px">
+          <div class="card-header">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            Packet Inspection
+          </div>
 
-                <div class="inspect-title">Raw Hex / ASCII Payload</div>
-                <div class="hexdump-container" id="inspect-hexdump">Select a packet from the list to view its raw payload hexdump.</div>
-            </div>
-        </aside>
+          <div class="inspect-title">Ethernet & IP Metadata</div>
+          <div class="metadata-grid">
+            <span class="meta-label-lbl">Time:</span>
+            <span class="meta-value-val" id="inspect-time">-</span>
+
+            <span class="meta-label-lbl">Protocol:</span>
+            <span class="meta-value-val" id="inspect-proto">-</span>
+
+            <span class="meta-label-lbl">Source IP:</span>
+            <span class="meta-value-val" id="inspect-src">-</span>
+
+            <span class="meta-label-lbl">Dest IP:</span>
+            <span class="meta-value-val" id="inspect-dst">-</span>
+
+            <span class="meta-label-lbl">Packet Size:</span>
+            <span class="meta-value-val" id="inspect-size">-</span>
+
+            <span class="meta-label-lbl">L7 Info:</span>
+            <span
+              class="meta-value-val"
+              style="color: var(--primary)"
+              id="inspect-info"
+              >-</span
+            >
+          </div>
+
+          <div class="inspect-title">Raw Hex / ASCII Payload</div>
+          <div class="hexdump-container" id="inspect-hexdump">
+            Select a packet from the list to view its raw payload hexdump.
+          </div>
+        </div>
+      </aside>
     </main>
 
     <!-- Client Script -->
     <script>
-        let socket;
-        let packets = [];
-        let filteredPackets = [];
-        let selectedPacket = null;
-        let activeFilter = 'all';
-        let searchQuery = '';
-        
-        let startTimestamp = Date.now();
-        let totalBytes = 0;
-        let packetCounts = { TCP: 0, UDP: 0, ICMP: 0, ICMP6: 0, ARP: 0, DNS: 0, TLS: 0 };
-        
-        let ipStats = {};
-        let domainStats = {};
-        let sparklineData = Array(15).fill(0);
-        let chartData = Array(12).fill(0);
-        
-        let currentPage = 1;
-        const itemsPerPage = 35;
-        
-        // Batch queue for incoming WebSocket packets
-        let packetQueue = [];
-        
-        // Initialize Sparkline visualizer
-        function updateSparkline(newRate) {
-            sparklineData.shift();
-            sparklineData.push(newRate);
-            const sparklineDiv = document.getElementById("sparkline");
-            sparklineDiv.innerHTML = "";
-            const maxVal = Math.max(...sparklineData, 1);
-            
-            sparklineData.forEach((val) => {
-                const bar = document.createElement("div");
-                bar.className = "sparkbar" + (val > 0 ? " active" : "");
-                const pct = (val / maxVal) * 100;
-                bar.style.height = `${Math.max(4, pct)}%`;
-                sparklineDiv.appendChild(bar);
-            });
+      let socket;
+      let packets = [];
+      let filteredPackets = [];
+      let selectedPacket = null;
+      let activeFilter = "all";
+      let searchQuery = "";
+
+      let startTimestamp = Date.now();
+      let totalBytes = 0;
+      let packetCounts = {
+        TCP: 0,
+        UDP: 0,
+        ICMP: 0,
+        ICMP6: 0,
+        ARP: 0,
+        DNS: 0,
+        TLS: 0,
+      };
+
+      let ipStats = {};
+      let domainStats = {};
+      let sparklineData = Array(15).fill(0);
+      let chartData = Array(12).fill(0);
+
+      let currentPage = 1;
+      const itemsPerPage = 35;
+
+      // Batch queue for incoming WebSocket packets
+      let packetQueue = [];
+
+      // Initialize Sparkline visualizer
+      function updateSparkline(newRate) {
+        sparklineData.shift();
+        sparklineData.push(newRate);
+        const sparklineDiv = document.getElementById("sparkline");
+        sparklineDiv.innerHTML = "";
+        const maxVal = Math.max(...sparklineData, 1);
+
+        sparklineData.forEach((val) => {
+          const bar = document.createElement("div");
+          bar.className = "sparkbar" + (val > 0 ? " active" : "");
+          const pct = (val / maxVal) * 100;
+          bar.style.height = `${Math.max(4, pct)}%`;
+          sparklineDiv.appendChild(bar);
+        });
+      }
+
+      let isConnected = false;
+      let packetsThisSecond = 0;
+      let uptimeSeconds = 0;
+
+      // Initialize Uptime & Rate Counters
+      setInterval(() => {
+        if (isConnected) {
+          // Increment uptime only when actually connected to the sniffer
+          uptimeSeconds++;
+          const hrs = String(Math.floor(uptimeSeconds / 3600)).padStart(2, "0");
+          const mins = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(
+            2,
+            "0",
+          );
+          const secs = String(uptimeSeconds % 60).padStart(2, "0");
+          document.getElementById("uptime-counter").innerText =
+            `${hrs}:${mins}:${secs}`;
+
+          // Real packet rate based on actual packets received in the last second
+          const rate = packetsThisSecond;
+          document.getElementById("header-rate").innerText =
+            `${rate.toLocaleString()} pkt/s`;
+          document.getElementById("kpi-rate").innerHTML =
+            `${rate.toLocaleString()}<span>pkt/s</span>`;
+
+          updateSparkline(rate);
+          updateChart(rate);
+        } else {
+          // Flatline everything if disconnected
+          document.getElementById("header-rate").innerText = "0 pkt/s";
+          document.getElementById("kpi-rate").innerHTML = "0<span>pkt/s</span>";
+          document.getElementById("active-interface").innerText = "-";
+
+          updateSparkline(0);
+          updateChart(0);
         }
-        
-        let isConnected = false;
-        let packetsThisSecond = 0;
-        let uptimeSeconds = 0;
-        
-        // Initialize Uptime & Rate Counters
-        setInterval(() => {
-            if (isConnected) {
-                // Increment uptime only when actually connected to the sniffer
-                uptimeSeconds++;
-                const hrs = String(Math.floor(uptimeSeconds / 3600)).padStart(2, '0');
-                const mins = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(2, '0');
-                const secs = String(uptimeSeconds % 60).padStart(2, '0');
-                document.getElementById("uptime-counter").innerText = `${hrs}:${mins}:${secs}`;
-                
-                // Real packet rate based on actual packets received in the last second
-                const rate = packetsThisSecond;
-                document.getElementById("header-rate").innerText = `${rate.toLocaleString()} pkt/s`;
-                document.getElementById("kpi-rate").innerHTML = `${rate.toLocaleString()}<span>pkt/s</span>`;
-                
-                updateSparkline(rate);
-                updateChart(rate);
+
+        // Reset the packets received in this second slot
+        packetsThisSecond = 0;
+      }, 1000);
+
+      function updateChart(newRate) {
+        chartData.shift();
+        chartData.push(newRate);
+
+        const visualizer = document.getElementById("chart-visualizer");
+        visualizer.innerHTML = "";
+        const maxVal = Math.max(...chartData, 1);
+
+        const now = new Date();
+        chartData.forEach((val, idx) => {
+          const container = document.createElement("div");
+          container.className = "chart-bar-container";
+
+          const bar = document.createElement("div");
+          bar.className = "chart-bar";
+          const pct = (val / maxVal) * 80; // keep headroom
+          bar.style.height = `${Math.max(2, pct)}px`;
+
+          const label = document.createElement("div");
+          label.className = "chart-bar-label";
+
+          const t = new Date(now.getTime() - (11 - idx) * 1000);
+          label.innerText = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}:${String(t.getSeconds()).padStart(2, "0")}`;
+
+          container.appendChild(bar);
+          container.appendChild(label);
+          visualizer.appendChild(container);
+        });
+      }
+
+      // Connect WebSocket
+      function connectWS() {
+        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.host || "127.0.0.1:7070";
+        socket = new WebSocket(`${proto}//${host}/ws`);
+
+        socket.onopen = () => {
+          console.log("WebSocket connected.");
+          isConnected = true;
+
+          // Update badge to active green
+          const badge = document.getElementById("status-badge");
+          badge.className = "status-badge";
+          badge.innerHTML = '<span class="status-dot"></span>CONNECTED';
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "system") {
+              document.getElementById("active-interface").innerText =
+                data.interface || "unknown";
             } else {
-                // Flatline everything if disconnected
-                document.getElementById("header-rate").innerText = "0 pkt/s";
-                document.getElementById("kpi-rate").innerHTML = "0<span>pkt/s</span>";
-                document.getElementById("active-interface").innerText = "-";
-                
-                updateSparkline(0);
-                updateChart(0);
+              packetQueue.push(data);
+              packetsThisSecond++;
             }
-            
-            // Reset the packets received in this second slot
-            packetsThisSecond = 0;
-        }, 1000);
+          } catch (e) {
+            console.error("JSON parsing error: ", e);
+          }
+        };
 
-        function updateChart(newRate) {
-            chartData.shift();
-            chartData.push(newRate);
-            
-            const visualizer = document.getElementById("chart-visualizer");
-            visualizer.innerHTML = "";
-            const maxVal = Math.max(...chartData, 1);
-            
-            const now = new Date();
-            chartData.forEach((val, idx) => {
-                const container = document.createElement("div");
-                container.className = "chart-bar-container";
-                
-                const bar = document.createElement("div");
-                bar.className = "chart-bar";
-                const pct = (val / maxVal) * 80; // keep headroom
-                bar.style.height = `${Math.max(2, pct)}px`;
-                
-                const label = document.createElement("div");
-                label.className = "chart-bar-label";
-                
-                const t = new Date(now.getTime() - (11 - idx) * 1000);
-                label.innerText = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
-                
-                container.appendChild(bar);
-                container.appendChild(label);
-                visualizer.appendChild(container);
-            });
+        socket.onclose = () => {
+          console.log("WebSocket disconnected. Retrying in 2 seconds...");
+          isConnected = false;
+
+          // Update badge to warning orange
+          const badge = document.getElementById("status-badge");
+          badge.className = "status-badge offline";
+          badge.innerHTML = '<span class="status-dot"></span>Disconnected';
+
+          setTimeout(connectWS, 2000);
+        };
+      }
+
+      // Batch render packets from queue to DOM every 100ms
+      setInterval(() => {
+        if (packetQueue.length === 0) return;
+
+        const chunk = packetQueue.splice(0, packetQueue.length);
+        chunk.forEach((pkt) => {
+          // Update global counters
+          totalBytes += pkt.size;
+          packetCounts[pkt.proto] = (packetCounts[pkt.proto] || 0) + 1;
+
+          // Track stats
+          const srcIpOnly = pkt.src.split(":")[0];
+          const dstIpOnly = pkt.dst.split(":")[0];
+          ipStats[dstIpOnly] = (ipStats[dstIpOnly] || 0) + 1;
+
+          if (pkt.info && pkt.info.includes("SNI:")) {
+            const dom = pkt.info.split("SNI:")[1].trim();
+            domainStats[dom] = (domainStats[dom] || 0) + 1;
+          } else if (pkt.info && pkt.info.startsWith("DNS: ")) {
+            const dom = pkt.info.substring(5).trim();
+            domainStats[dom] = (domainStats[dom] || 0) + 1;
+          }
+
+          packets.unshift(pkt);
+        });
+
+        // Keep list under 2000 elements to optimize browser memory
+        if (packets.length > 2000) {
+          packets = packets.slice(0, 2000);
         }
 
-        // Connect WebSocket
-        function connectWS() {
-            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host || '127.0.0.1:7070';
-            socket = new WebSocket(`${proto}//${host}/ws`);
+        updateKPIs();
+        updateTopTargetsList();
+        refreshList();
+      }, 100);
 
-            socket.onopen = () => {
-                console.log("WebSocket connected.");
-                isConnected = true;
-                
-                // Update badge to active green
-                const badge = document.getElementById("status-badge");
-                badge.className = "status-badge";
-                badge.innerHTML = '<span class="status-dot"></span>Live Monitoring Active';
-            };
+      function updateKPIs() {
+        // Card 2: Top IP
+        let topIp = "-";
+        let topIpCount = 0;
+        for (const ip in ipStats) {
+          if (ipStats[ip] > topIpCount) {
+            topIpCount = ipStats[ip];
+            topIp = ip;
+          }
+        }
+        document.getElementById("kpi-top-ip").innerText = topIp;
+        document.getElementById("kpi-top-ip-count").innerText =
+          `${topIpCount.toLocaleString()} pkts`;
 
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === "system") {
-                        document.getElementById("active-interface").innerText = data.interface || "unknown";
-                    } else {
-                        packetQueue.push(data);
-                        packetsThisSecond++;
-                    }
-                } catch(e) {
-                    console.error("JSON parsing error: ", e);
-                }
-            };
+        // Card 3: Top Domain
+        let topDom = "-";
+        let topDomCount = 0;
+        for (const dom in domainStats) {
+          if (domainStats[dom] > topDomCount) {
+            topDomCount = domainStats[dom];
+            topDom = dom;
+          }
+        }
+        document.getElementById("kpi-top-domain").innerText = topDom;
+        document.getElementById("kpi-top-domain-count").innerText =
+          `${topDomCount.toLocaleString()} pkts`;
 
-            socket.onclose = () => {
-                console.log("WebSocket disconnected. Retrying in 2 seconds...");
-                isConnected = false;
-                
-                // Update badge to warning orange
-                const badge = document.getElementById("status-badge");
-                badge.className = "status-badge offline";
-                badge.innerHTML = '<span class="status-dot"></span>Disconnected';
-                
-                setTimeout(connectWS, 2000);
-            };
+        // Card 4: Total Traffic
+        let formattedTraffic = "";
+        if (totalBytes >= 1048576) {
+          formattedTraffic = `${(totalBytes / 1048576).toFixed(2)} MB`;
+        } else if (totalBytes >= 1024) {
+          formattedTraffic = `${(totalBytes / 1024).toFixed(1)} KB`;
+        } else {
+          formattedTraffic = `${totalBytes} B`;
+        }
+        document.getElementById("kpi-traffic").innerText = formattedTraffic;
+        document.getElementById("kpi-traffic-count").innerText =
+          `${packets.length.toLocaleString()} packets`;
+      }
+
+      function updateTopTargetsList() {
+        const listDiv = document.getElementById("top-targets-list");
+        listDiv.innerHTML = "";
+
+        const targets = [];
+        for (const dom in domainStats) {
+          targets.push({ name: dom, count: domainStats[dom] });
+        }
+        for (const ip in ipStats) {
+          targets.push({ name: ip, count: ipStats[ip] });
         }
 
-        // Batch render packets from queue to DOM every 100ms
-        setInterval(() => {
-            if (packetQueue.length === 0) return;
-            
-            const chunk = packetQueue.splice(0, packetQueue.length);
-            chunk.forEach(pkt => {
-                // Update global counters
-                totalBytes += pkt.size;
-                packetCounts[pkt.proto] = (packetCounts[pkt.proto] || 0) + 1;
-                
-                // Track stats
-                const srcIpOnly = pkt.src.split(":")[0];
-                const dstIpOnly = pkt.dst.split(":")[0];
-                ipStats[dstIpOnly] = (ipStats[dstIpOnly] || 0) + 1;
-                
-                if (pkt.info && pkt.info.includes("SNI:")) {
-                    const dom = pkt.info.split("SNI:")[1].trim();
-                    domainStats[dom] = (domainStats[dom] || 0) + 1;
-                } else if (pkt.info && pkt.info.startsWith("DNS: ")) {
-                    const dom = pkt.info.substring(5).trim();
-                    domainStats[dom] = (domainStats[dom] || 0) + 1;
-                }
+        targets.sort((a, b) => b.count - a.count);
+        const top5 = targets.slice(0, 5);
 
-                packets.unshift(pkt);
-            });
-
-            // Keep list under 2000 elements to optimize browser memory
-            if (packets.length > 2000) {
-                packets = packets.slice(0, 2000);
-            }
-
-            updateKPIs();
-            updateTopTargetsList();
-            refreshList();
-        }, 100);
-
-        function updateKPIs() {
-            // Card 2: Top IP
-            let topIp = "-";
-            let topIpCount = 0;
-            for (const ip in ipStats) {
-                if (ipStats[ip] > topIpCount) {
-                    topIpCount = ipStats[ip];
-                    topIp = ip;
-                }
-            }
-            document.getElementById("kpi-top-ip").innerText = topIp;
-            document.getElementById("kpi-top-ip-count").innerText = `${topIpCount.toLocaleString()} pkts`;
-
-            // Card 3: Top Domain
-            let topDom = "-";
-            let topDomCount = 0;
-            for (const dom in domainStats) {
-                if (domainStats[dom] > topDomCount) {
-                    topDomCount = domainStats[dom];
-                    topDom = dom;
-                }
-            }
-            document.getElementById("kpi-top-domain").innerText = topDom;
-            document.getElementById("kpi-top-domain-count").innerText = `${topDomCount.toLocaleString()} pkts`;
-
-            // Card 4: Total Traffic
-            let formattedTraffic = "";
-            if (totalBytes >= 1048576) {
-                formattedTraffic = `${(totalBytes / 1048576).toFixed(2)} MB`;
-            } else if (totalBytes >= 1024) {
-                formattedTraffic = `${(totalBytes / 1024).toFixed(1)} KB`;
-            } else {
-                formattedTraffic = `${totalBytes} B`;
-            }
-            document.getElementById("kpi-traffic").innerText = formattedTraffic;
-            document.getElementById("kpi-traffic-count").innerText = `${packets.length.toLocaleString()} packets`;
+        if (top5.length === 0) {
+          listDiv.innerHTML =
+            '<div class="placeholder-text">No target data gathered yet.</div>';
+          return;
         }
 
-        function updateTopTargetsList() {
-            const listDiv = document.getElementById("top-targets-list");
-            listDiv.innerHTML = "";
+        const maxCount = top5[0].count;
 
-            const targets = [];
-            for (const dom in domainStats) {
-                targets.push({ name: dom, count: domainStats[dom] });
-            }
-            for (const ip in ipStats) {
-                targets.push({ name: ip, count: ipStats[ip] });
-            }
+        top5.forEach((t) => {
+          const pct = (t.count / maxCount) * 100;
 
-            targets.sort((a, b) => b.count - a.count);
-            const top5 = targets.slice(0, 5);
-
-            if (top5.length === 0) {
-                listDiv.innerHTML = '<div class="placeholder-text">No target data gathered yet.</div>';
-                return;
-            }
-
-            const maxCount = top5[0].count;
-
-            top5.forEach(t => {
-                const pct = (t.count / maxCount) * 100;
-                
-                const item = document.createElement("div");
-                item.className = "target-item";
-                item.innerHTML = `
+          const item = document.createElement("div");
+          item.className = "target-item";
+          item.innerHTML = `
                     <div class="target-meta">
                         <span class="target-name">${t.name}</span>
                         <span class="target-count">${t.count.toLocaleString()} pkts</span>
@@ -1275,157 +1463,189 @@
                         <div class="progress-bar" style="width: ${pct}%"></div>
                     </div>
                 `;
-                listDiv.appendChild(item);
-            });
+          listDiv.appendChild(item);
+        });
+      }
+
+      // Formatting hexdump from true hex string without mocks
+      function generateHexASCII(packet) {
+        if (!packet.payload)
+          return '<div class="placeholder-text">No payload data available</div>';
+
+        const hex = packet.payload;
+        const bytes = [];
+        for (let i = 0; i < hex.length; i += 2) {
+          bytes.push(parseInt(hex.substr(i, 2), 16));
         }
 
-        // Formatting hexdump from true hex string without mocks
-        function generateHexASCII(packet) {
-            if (!packet.payload) return '<div class="placeholder-text">No payload data available</div>';
-            
-            const hex = packet.payload;
-            const bytes = [];
-            for (let i = 0; i < hex.length; i += 2) {
-                bytes.push(parseInt(hex.substr(i, 2), 16));
+        let dump = "";
+        let offset = 0;
+        for (let i = 0; i < bytes.length; i += 16) {
+          const chunk = bytes.slice(i, i + 16);
+
+          // Offset
+          dump += `<span class="hexdump-offset">${offset.toString(16).padStart(4, "0")}</span>  `;
+
+          // Hex values
+          let hexPart = "";
+          for (let j = 0; j < 16; j++) {
+            if (j === 8) hexPart += " ";
+            if (j < chunk.length) {
+              hexPart += chunk[j].toString(16).padStart(2, "0") + " ";
+            } else {
+              hexPart += "   ";
             }
-            
-            let dump = "";
-            let offset = 0;
-            for (let i = 0; i < bytes.length; i += 16) {
-                const chunk = bytes.slice(i, i + 16);
-                
-                // Offset
-                dump += `<span class="hexdump-offset">${offset.toString(16).padStart(4, '0')}</span>  `;
-                
-                // Hex values
-                let hexPart = "";
-                for (let j = 0; j < 16; j++) {
-                    if (j === 8) hexPart += " ";
-                    if (j < chunk.length) {
-                        hexPart += chunk[j].toString(16).padStart(2, '0') + " ";
-                    } else {
-                        hexPart += "   ";
-                    }
-                }
-                dump += `<span class="hexdump-bytes">${hexPart}</span> `;
-                
-                // ASCII values
-                let asciiPart = "";
-                for (let j = 0; j < chunk.length; j++) {
-                    const b = chunk[j];
-                    asciiPart += (b >= 32 && b <= 126) ? String.fromCharCode(b) : ".";
-                }
-                dump += `<span class="hexdump-ascii">${asciiPart}</span>\n`;
-                offset += 16;
+          }
+          dump += `<span class="hexdump-bytes">${hexPart}</span> `;
+
+          // ASCII values
+          let asciiPart = "";
+          for (let j = 0; j < chunk.length; j++) {
+            const b = chunk[j];
+            asciiPart += b >= 32 && b <= 126 ? String.fromCharCode(b) : ".";
+          }
+          dump += `<span class="hexdump-ascii">${asciiPart}</span>\n`;
+          offset += 16;
+        }
+        return dump;
+      }
+
+      function inspectPacket(pkt, rowEl) {
+        selectedPacket = pkt;
+
+        // Mark table selection
+        document
+          .querySelectorAll("#packets-list tr")
+          .forEach((tr) => tr.classList.remove("selected"));
+        rowEl.classList.add("selected");
+
+        // Populate Metadata
+        document.getElementById("inspect-time").innerText = pkt.timestamp;
+        document.getElementById("inspect-proto").innerText = pkt.proto;
+        document.getElementById("inspect-src").innerText = pkt.src;
+        document.getElementById("inspect-dst").innerText = pkt.dst;
+        document.getElementById("inspect-size").innerText = `${pkt.size} bytes`;
+        document.getElementById("inspect-info").innerText = pkt.info;
+
+        // Generate real Hex/ASCII representation
+        const hexdumpBox = document.getElementById("inspect-hexdump");
+        hexdumpBox.innerHTML = generateHexASCII(pkt);
+      }
+
+      // Filtering and Refreshing Packets List
+      function setFilter(filter) {
+        activeFilter = filter;
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.toggle(
+            "active",
+            btn.innerText.toLowerCase() === filter,
+          );
+        });
+        currentPage = 1;
+        refreshList();
+      }
+
+      function handleSearch() {
+        searchQuery = document
+          .getElementById("search-input")
+          .value.toLowerCase();
+        currentPage = 1;
+        refreshList();
+      }
+
+      function refreshList() {
+        // Apply protocol filter
+        filteredPackets = packets.filter((pkt) => {
+          if (activeFilter === "all") return true;
+          if (activeFilter === "tls") return pkt.proto === "TLS";
+          if (activeFilter === "dns") return pkt.proto === "DNS";
+          if (activeFilter === "http") return pkt.proto === "HTTP";
+          return pkt.proto.toLowerCase() === activeFilter;
+        });
+
+        // Apply search query
+        if (searchQuery) {
+          filteredPackets = filteredPackets.filter(
+            (pkt) =>
+              pkt.src.toLowerCase().includes(searchQuery) ||
+              pkt.dst.toLowerCase().includes(searchQuery) ||
+              pkt.proto.toLowerCase().includes(searchQuery) ||
+              pkt.info.toLowerCase().includes(searchQuery),
+          );
+        }
+
+        const tbody = document.getElementById("packets-list");
+        tbody.innerHTML = "";
+
+        if (filteredPackets.length === 0) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No matching packets found.</td></tr>`;
+          document.getElementById("footer-count").innerText =
+            `Showing 0 to 0 of 0 entries`;
+          return;
+        }
+
+        // Pagination indexes
+        const totalItems = filteredPackets.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+
+        document.getElementById("footer-count").innerText =
+          `Showing ${startIndex + 1} to ${endIndex} of ${totalItems} entries`;
+        document.getElementById("page-num-btn").innerText = currentPage;
+
+        const visibleSlice = filteredPackets.slice(startIndex, endIndex);
+
+        const fragment = document.createDocumentFragment();
+        visibleSlice.forEach((pkt) => {
+          const tr = document.createElement("tr");
+          if (
+            selectedPacket &&
+            selectedPacket.timestamp === pkt.timestamp &&
+            selectedPacket.src === pkt.src
+          ) {
+            tr.className = "selected";
+          }
+
+          // Highlight TLS domains, DNS query details, or HTTP methods
+          let infoFormatted = pkt.info;
+          if (pkt.info.includes("SNI:")) {
+            const parts = pkt.info.split("SNI:");
+            infoFormatted = `${parts[0]}SNI: <span class="highlight">${parts[1]}</span>`;
+          } else if (pkt.info.startsWith("DNS: ")) {
+            infoFormatted = `DNS Query: <span class="highlight">${pkt.info.substring(5)}</span>`;
+          } else if (pkt.proto === "HTTP") {
+            const words = pkt.info.split(" ");
+            if (
+              words.length >= 2 &&
+              [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH",
+                "OPTIONS",
+                "HEAD",
+              ].includes(words[0])
+            ) {
+              infoFormatted = `<span style="color: var(--primary); font-weight: 700;">${words[0]}</span> <span style="color: #ffffff; font-weight: 500;">${words.slice(1).join(" ")}</span>`;
+            } else if (
+              pkt.info.startsWith("1") ||
+              pkt.info.startsWith("2") ||
+              pkt.info.startsWith("3") ||
+              pkt.info.startsWith("4") ||
+              pkt.info.startsWith("5")
+            ) {
+              // Probably an HTTP status code (e.g. 200 OK)
+              infoFormatted = `<span style="color: var(--success); font-weight: 700;">HTTP ${pkt.info}</span>`;
+            } else {
+              infoFormatted = `<span style="color: var(--success); font-weight: 700;">${pkt.info}</span>`;
             }
-            return dump;
-        }
+          }
 
-        function inspectPacket(pkt, rowEl) {
-            selectedPacket = pkt;
-            
-            // Mark table selection
-            document.querySelectorAll("#packets-list tr").forEach(tr => tr.classList.remove("selected"));
-            rowEl.classList.add("selected");
-
-            // Populate Metadata
-            document.getElementById("inspect-time").innerText = pkt.timestamp;
-            document.getElementById("inspect-proto").innerText = pkt.proto;
-            document.getElementById("inspect-src").innerText = pkt.src;
-            document.getElementById("inspect-dst").innerText = pkt.dst;
-            document.getElementById("inspect-size").innerText = `${pkt.size} bytes`;
-            document.getElementById("inspect-info").innerText = pkt.info;
-
-            // Generate real Hex/ASCII representation
-            const hexdumpBox = document.getElementById("inspect-hexdump");
-            hexdumpBox.innerHTML = generateHexASCII(pkt);
-        }
-
-        // Filtering and Refreshing Packets List
-        function setFilter(filter) {
-            activeFilter = filter;
-            document.querySelectorAll(".filter-btn").forEach(btn => {
-                btn.classList.toggle("active", btn.innerText.toLowerCase() === filter);
-            });
-            currentPage = 1;
-            refreshList();
-        }
-
-        function handleSearch() {
-            searchQuery = document.getElementById("search-input").value.toLowerCase();
-            currentPage = 1;
-            refreshList();
-        }
-
-        function refreshList() {
-            // Apply protocol filter
-            filteredPackets = packets.filter(pkt => {
-                if (activeFilter === 'all') return true;
-                if (activeFilter === 'tls') return pkt.proto === 'TLS';
-                if (activeFilter === 'dns') return pkt.proto === 'DNS';
-                if (activeFilter === 'http') return pkt.proto === 'HTTP';
-                return pkt.proto.toLowerCase() === activeFilter;
-            });
-
-            // Apply search query
-            if (searchQuery) {
-                filteredPackets = filteredPackets.filter(pkt => 
-                    pkt.src.toLowerCase().includes(searchQuery) ||
-                    pkt.dst.toLowerCase().includes(searchQuery) ||
-                    pkt.proto.toLowerCase().includes(searchQuery) ||
-                    pkt.info.toLowerCase().includes(searchQuery)
-                );
-            }
-
-            const tbody = document.getElementById("packets-list");
-            tbody.innerHTML = "";
-
-            if (filteredPackets.length === 0) {
-                tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No matching packets found.</td></tr>`;
-                document.getElementById("footer-count").innerText = `Showing 0 to 0 of 0 entries`;
-                return;
-            }
-
-            // Pagination indexes
-            const totalItems = filteredPackets.length;
-            const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-            if (currentPage > totalPages) currentPage = totalPages;
-
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-            
-            document.getElementById("footer-count").innerText = `Showing ${startIndex + 1} to ${endIndex} of ${totalItems} entries`;
-            document.getElementById("page-num-btn").innerText = currentPage;
-
-            const visibleSlice = filteredPackets.slice(startIndex, endIndex);
-
-            const fragment = document.createDocumentFragment();
-            visibleSlice.forEach(pkt => {
-                const tr = document.createElement("tr");
-                if (selectedPacket && selectedPacket.timestamp === pkt.timestamp && selectedPacket.src === pkt.src) {
-                    tr.className = "selected";
-                }
-
-                // Highlight TLS domains, DNS query details, or HTTP methods
-                let infoFormatted = pkt.info;
-                if (pkt.info.includes("SNI:")) {
-                    const parts = pkt.info.split("SNI:");
-                    infoFormatted = `${parts[0]}SNI: <span class="highlight">${parts[1]}</span>`;
-                } else if (pkt.info.startsWith("DNS: ")) {
-                    infoFormatted = `DNS Query: <span class="highlight">${pkt.info.substring(5)}</span>`;
-                } else if (pkt.proto === "HTTP") {
-                    const words = pkt.info.split(" ");
-                    if (words.length >= 2 && ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"].includes(words[0])) {
-                        infoFormatted = `<span style="color: var(--primary); font-weight: 700;">${words[0]}</span> <span style="color: #ffffff; font-weight: 500;">${words.slice(1).join(" ")}</span>`;
-                    } else if (pkt.info.startsWith("1") || pkt.info.startsWith("2") || pkt.info.startsWith("3") || pkt.info.startsWith("4") || pkt.info.startsWith("5")) {
-                        // Probably an HTTP status code (e.g. 200 OK)
-                        infoFormatted = `<span style="color: var(--success); font-weight: 700;">HTTP ${pkt.info}</span>`;
-                    } else {
-                        infoFormatted = `<span style="color: var(--success); font-weight: 700;">${pkt.info}</span>`;
-                    }
-                }
-
-                tr.innerHTML = `
+          tr.innerHTML = `
                     <td class="time-col">${pkt.timestamp}</td>
                     <td><span class="badge badge-${pkt.proto.toLowerCase()}">${pkt.proto}</span></td>
                     <td class="ip-col">${pkt.src}</td>
@@ -1434,32 +1654,32 @@
                     <td class="size-col">${pkt.size} B</td>
                 `;
 
-                tr.onclick = () => inspectPacket(pkt, tr);
-                fragment.appendChild(tr);
-            });
+          tr.onclick = () => inspectPacket(pkt, tr);
+          fragment.appendChild(tr);
+        });
 
-            tbody.appendChild(fragment);
+        tbody.appendChild(fragment);
+      }
+
+      function nextPage() {
+        const totalPages = Math.ceil(filteredPackets.length / itemsPerPage);
+        if (currentPage < totalPages) {
+          currentPage++;
+          refreshList();
         }
+      }
 
-        function nextPage() {
-            const totalPages = Math.ceil(filteredPackets.length / itemsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                refreshList();
-            }
+      function prevPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          refreshList();
         }
+      }
 
-        function prevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                refreshList();
-            }
-        }
-
-        window.onload = () => {
-            connectWS();
-            updateChart(0);
-        };
+      window.onload = () => {
+        connectWS();
+        updateChart(0);
+      };
     </script>
-</body>
+  </body>
 </html>
