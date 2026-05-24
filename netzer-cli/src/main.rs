@@ -239,36 +239,26 @@ fn handle_tcp(
         }
     } else {
         domain_buf = String::new();
-        if src_port == 80 || dst_port == 80 || src_port == 8080 || dst_port == 8080 {
-            let payload_str = String::from_utf8_lossy(tcp_payload);
-            if let Some(first_line) = payload_str.lines().next() {
-                let trimmed = first_line.trim();
-                if trimmed.starts_with("GET ") || trimmed.starts_with("POST ") || trimmed.starts_with("PUT ") || trimmed.starts_with("DELETE ") || trimmed.starts_with("PATCH ") || trimmed.starts_with("OPTIONS ") || trimmed.starts_with("HEAD ") {
-                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        domain_buf = format!("{} {}", parts[0], parts[1]);
-                        info_raw = &domain_buf;
-                        is_http = true;
-                    } else {
-                        info_raw = "[HTTP Request]";
-                        is_http = true;
-                    }
-                } else if trimmed.starts_with("HTTP/") {
-                    let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
-                    if parts.len() >= 2 {
-                        domain_buf = parts[1..].join(" ");
-                        info_raw = &domain_buf;
-                        is_http = true;
-                    } else {
-                        info_raw = "[HTTP Response]";
-                        is_http = true;
-                    }
-                } else {
-                    info_raw = "[HTTP]";
-                    is_http = true;
-                }
+        let payload_str = String::from_utf8_lossy(tcp_payload);
+        let trimmed = payload_str.trim_start();
+        if trimmed.starts_with("GET ") || trimmed.starts_with("POST ") || trimmed.starts_with("PUT ") || trimmed.starts_with("DELETE ") || trimmed.starts_with("PATCH ") || trimmed.starts_with("OPTIONS ") || trimmed.starts_with("HEAD ") {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            if parts.len() >= 2 {
+                domain_buf = format!("{} {}", parts[0], parts[1]);
+                info_raw = &domain_buf;
+                is_http = true;
             } else {
-                info_raw = "[HTTP]";
+                info_raw = "[HTTP Request]";
+                is_http = true;
+            }
+        } else if trimmed.starts_with("HTTP/") {
+            let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
+            if parts.len() >= 2 {
+                domain_buf = parts[1..].join(" ");
+                info_raw = &domain_buf;
+                is_http = true;
+            } else {
+                info_raw = "[HTTP Response]";
                 is_http = true;
             }
         }

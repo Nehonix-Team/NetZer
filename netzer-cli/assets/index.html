@@ -131,6 +131,15 @@
             border: 1px solid rgba(16, 185, 129, 0.2);
             animation: pulse 2s infinite ease-in-out;
         }
+        
+        .status-badge.offline {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+        .status-badge.offline .status-dot {
+            background-color: var(--warning);
+        }
 
         .status-dot {
             width: 6px;
@@ -755,7 +764,7 @@
             </div>
             <div class="logo-text">Net<span>Zer</span></div>
             <div class="logo-subtitle">DEEP PACKET ANALYZER</div>
-            <div class="status-badge">
+            <div class="status-badge" id="status-badge">
                 <span class="status-dot"></span>
                 Live Monitoring Active
             </div>
@@ -775,7 +784,7 @@
                 <span class="meta-value" id="header-rate">0 pkt/s</span>
             </div>
             
-            <div class="header-actions">
+            <!-- <div class="header-actions">
                 <button class="icon-btn" title="Settings">
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -787,7 +796,7 @@
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
                 </button>
-            </div>
+            </div> -->
         </div>
     </header>
 
@@ -1048,24 +1057,39 @@
             });
         }
         
+        let isConnected = false;
+        let packetsThisSecond = 0;
+        let uptimeSeconds = 0;
+        
         // Initialize Uptime & Rate Counters
         setInterval(() => {
-            // Uptime
-            const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
-            const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-            const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-            const secs = String(elapsed % 60).padStart(2, '0');
-            document.getElementById("uptime-counter").innerText = `${hrs}:${mins}:${secs}`;
+            if (isConnected) {
+                // Increment uptime only when actually connected to the sniffer
+                uptimeSeconds++;
+                const hrs = String(Math.floor(uptimeSeconds / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(2, '0');
+                const secs = String(uptimeSeconds % 60).padStart(2, '0');
+                document.getElementById("uptime-counter").innerText = `${hrs}:${mins}:${secs}`;
+                
+                // Real packet rate based on actual packets received in the last second
+                const rate = packetsThisSecond;
+                document.getElementById("header-rate").innerText = `${rate.toLocaleString()} pkt/s`;
+                document.getElementById("kpi-rate").innerHTML = `${rate.toLocaleString()}<span>pkt/s</span>`;
+                
+                updateSparkline(rate);
+                updateChart(rate);
+            } else {
+                // Flatline everything if disconnected
+                document.getElementById("header-rate").innerText = "0 pkt/s";
+                document.getElementById("kpi-rate").innerHTML = "0<span>pkt/s</span>";
+                document.getElementById("active-interface").innerText = "-";
+                
+                updateSparkline(0);
+                updateChart(0);
+            }
             
-            // Calculate dynamic packet rate
-            const rate = Math.floor(Math.random() * 5) + Math.floor(packetQueue.length * 10);
-            document.getElementById("header-rate").innerText = `${rate.toLocaleString()} pkt/s`;
-            document.getElementById("kpi-rate").innerHTML = `${rate.toLocaleString()}<span>pkt/s</span>`;
-            
-            updateSparkline(rate);
-            
-            // Populate dynamic bar chart
-            updateChart(rate);
+            // Reset the packets received in this second slot
+            packetsThisSecond = 0;
         }, 1000);
 
         function updateChart(newRate) {
@@ -1106,6 +1130,12 @@
 
             socket.onopen = () => {
                 console.log("WebSocket connected.");
+                isConnected = true;
+                
+                // Update badge to active green
+                const badge = document.getElementById("status-badge");
+                badge.className = "status-badge";
+                badge.innerHTML = '<span class="status-dot"></span>Live Monitoring Active';
             };
 
             socket.onmessage = (event) => {
@@ -1115,6 +1145,7 @@
                         document.getElementById("active-interface").innerText = data.interface || "unknown";
                     } else {
                         packetQueue.push(data);
+                        packetsThisSecond++;
                     }
                 } catch(e) {
                     console.error("JSON parsing error: ", e);
@@ -1123,6 +1154,13 @@
 
             socket.onclose = () => {
                 console.log("WebSocket disconnected. Retrying in 2 seconds...");
+                isConnected = false;
+                
+                // Update badge to warning orange
+                const badge = document.getElementById("status-badge");
+                badge.className = "status-badge offline";
+                badge.innerHTML = '<span class="status-dot"></span>Disconnected';
+                
                 setTimeout(connectWS, 2000);
             };
         }
