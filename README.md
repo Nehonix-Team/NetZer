@@ -30,14 +30,14 @@ NetZer is organized as a modular Cargo workspace consisting of three primary cra
 
 ## Web Dashboard
 
-NetZer embeds a real-time OSINT monitoring dashboard accessible directly from the browser. Start it with:
+NetZer embeds a real-time monitoring dashboard accessible directly from the browser. Start it with:
 
 ```bash
 sudo ./netzer-cli --interface wlan0 --serve --port 7070
 # Then open http://127.0.0.1:7070
 ```
 
-![NetZer OSINT Dashboard](assets/image.png)
+![NetZer Dashboard](assets/image.png)
 
 ## License
 
